@@ -103,6 +103,28 @@ public class MainActivity extends Activity {
         return g;
     }
 
+    GradientDrawable outlineShape(int fill,int strokeColor,int strokeWidth,int radius){
+        GradientDrawable g=glass(fill,radius);
+        g.setStroke(dp(strokeWidth),strokeColor);
+        return g;
+    }
+
+    String hm(int h,int m){
+        return String.format(Locale.US,"%02d:%02d",h,m);
+    }
+
+    double averageScore(){
+        int count=0,total=0;
+        Iterator<String> it=days.keys();
+        while(it.hasNext()){
+            JSONObject o=days.optJSONObject(it.next());
+            if(o==null) continue;
+            int s=o.optInt("score",0);
+            if(s>=1 && s<=10){ total+=s; count++; }
+        }
+        return count==0?Double.NaN:(double)total/count;
+    }
+
     Button button(String s){
         Button b=new Button(this);b.setText(s);b.setTextSize(11);b.setTextColor(text());b.setAllCaps(false);b.setMinHeight(0);b.setMinWidth(0);
         b.setPadding(dp(7),0,dp(7),0);
@@ -240,7 +262,7 @@ public class MainActivity extends Activity {
         TextView small=tv(gregNumeric(today),10,muted());t.addView(small);
         String status=e==null?"עדיין לא עודכן  •  לחץ לעדכון":e.optBoolean("success")?"הצלחת היום ✅  •  ציון ⭐ "+e.optInt("score")+"/10":"לא הצלחת הפעם 🤍  •  ציון ⭐ "+e.optInt("score")+"/10";
         TextView st=tv(status,14,e==null?ACCENT:(e.optBoolean("success")?GREEN:RED));st.setPadding(0,dp(9),0,dp(9));t.addView(st);
-        Button edit=button(e==null?"עדכן את היום":"ערוך את היום");edit.setBackground(glass(ACCENT,16));edit.setTextColor(Color.WHITE);edit.setOnClickListener(v->openEditor(today));t.addView(edit,new LinearLayout.LayoutParams(-1,dp(50)));content.addView(t);content.addView(space(12));
+        Button edit=button("עדכן היום");edit.setBackground(glass(ACCENT,16));edit.setTextColor(Color.WHITE);edit.setOnClickListener(v->openEditor(today));t.addView(edit,new LinearLayout.LayoutParams(-1,dp(50)));content.addView(t);content.addView(space(12));
 
         LinearLayout quote=card();
         quote.addView(tv("✦ משפט מוטיבציה",11,ACCENT));
@@ -264,48 +286,121 @@ public class MainActivity extends Activity {
     void showCalendar(){
         screen=1;navButtons.clear();base("לוח שנה",true,false);
         TextView k=tv("עברית ↔ לועזי",10,muted());k.setTypeface(null,1);content.addView(k);
+
         LinearLayout monthCard=card();
         LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);
-        Button prev=button("‹"),next=button("›");
-        LinearLayout monthText=new LinearLayout(this);monthText.setOrientation(LinearLayout.VERTICAL);monthText.setGravity(Gravity.CENTER);
-        TextView hm=tv(hebrewMonth((java.util.Calendar)cursor.clone()),27,text());hm.setGravity(Gravity.CENTER);hm.setTypeface(null,1);
-        TextView gm=tv(String.format(Locale.US,"%02d/%04d",cursor.get(Calendar.MONTH)+1,cursor.get(Calendar.YEAR)),11,muted());gm.setGravity(Gravity.CENTER);
-        monthText.addView(hm,new LinearLayout.LayoutParams(-1,dp(42)));monthText.addView(gm,new LinearLayout.LayoutParams(-1,dp(22)));
-        head.addView(prev,new LinearLayout.LayoutParams(dp(52),dp(52)));head.addView(monthText,new LinearLayout.LayoutParams(0,dp(74),1));head.addView(next,new LinearLayout.LayoutParams(dp(52),dp(52)));monthCard.addView(head);content.addView(monthCard);content.addView(space(10));
 
-        GridLayout grid=new GridLayout(this);grid.setColumnCount(7);grid.setPadding(dp(5),dp(8),dp(5),dp(8));grid.setBackgroundColor(panelColor());
+        Button prev=button("‹"),next=button("›"),todayBtn=button("חזרה להיום");
+        LinearLayout monthText=new LinearLayout(this);monthText.setOrientation(LinearLayout.VERTICAL);monthText.setGravity(Gravity.CENTER);
+
+        TextView hm=tv(hebrewMonth((java.util.Calendar)cursor.clone()),27,text());hm.setGravity(Gravity.CENTER);hm.setTypeface(null,1);
+        TextView gy=tv(String.format(Locale.US,"%02d/%04d",cursor.get(Calendar.MONTH)+1,cursor.get(Calendar.YEAR)),11,muted());gy.setGravity(Gravity.CENTER);
+        monthText.addView(hm,new LinearLayout.LayoutParams(-1,dp(40)));
+        monthText.addView(gy,new LinearLayout.LayoutParams(-1,dp(21)));
+
+        head.addView(prev,new LinearLayout.LayoutParams(dp(48),dp(52)));
+        head.addView(monthText,new LinearLayout.LayoutParams(0,dp(68),1));
+        head.addView(next,new LinearLayout.LayoutParams(dp(48),dp(52)));
+        monthCard.addView(head);
+
+        java.util.Calendar realToday=day(java.util.Calendar.getInstance());
+        boolean sameMonth=cursor.get(Calendar.YEAR)==realToday.get(Calendar.YEAR)&&cursor.get(Calendar.MONTH)==realToday.get(Calendar.MONTH);
+        todayBtn.setVisibility(sameMonth?View.GONE:View.VISIBLE);
+        todayBtn.setText("חזרה להיום 📅");
+        todayBtn.setOnClickListener(v->{cursor.setTimeInMillis(realToday.getTimeInMillis());showCalendar();});
+        LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(-1,dp(44));tp.topMargin=dp(6);
+        monthCard.addView(todayBtn,tp);
+
+        content.addView(monthCard);content.addView(space(10));
+
+        GridLayout grid=new GridLayout(this);
+        grid.setColumnCount(7);
+        grid.setPadding(dp(5),dp(8),dp(5),dp(8));
+        grid.setBackgroundColor(panelColor());
+
         String[] week={"א","ב","ג","ד","ה","ו","ש"};
-        for(String w:week){TextView x=tv(w,10,muted());x.setGravity(Gravity.CENTER);GridLayout.LayoutParams p=cell(28);grid.addView(x,p);}
-        java.util.Calendar first=(java.util.Calendar)cursor.clone();first.set(Calendar.DAY_OF_MONTH,1);
-        int offset=first.get(Calendar.DAY_OF_WEEK)-1,max=cursor.getActualMaximum(Calendar.DAY_OF_MONTH);
-        for(int i=0;i<offset;i++)grid.addView(new Space(this),cell(72));
-        for(int n=1;n<=max;n++){
-            java.util.Calendar d=(java.util.Calendar)cursor.clone();d.set(Calendar.DAY_OF_MONTH,n);
-            JSONObject en=entry(d);
-            int fill=en==null?panelColor():(en.optBoolean("success")?Color.rgb(224,235,255):Color.rgb(252,225,228));
-            int mainColor=en==null?text():(en.optBoolean("success")?Color.rgb(36,96,205):Color.rgb(196,54,69));
-            LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setGravity(Gravity.CENTER);c.setPadding(dp(2),dp(3),dp(2),dp(3));
-            c.setBackground(glass(fill,12));
-            TextView a=tv(hebrewDay(d),18,mainColor);a.setGravity(Gravity.CENTER);a.setTypeface(null,1);c.addView(a,new LinearLayout.LayoutParams(-1,dp(32)));
-            TextView b=tv(String.valueOf(n),10,muted());b.setGravity(Gravity.CENTER);c.addView(b,new LinearLayout.LayoutParams(-1,dp(20)));
-            TextView mark=tv(en==null?"":(en.optBoolean("success")?"✓":"×"),11,mainColor);mark.setGravity(Gravity.CENTER);c.addView(mark,new LinearLayout.LayoutParams(-1,dp(16)));
-            c.setOnClickListener(v->openEditor(d));
-            grid.addView(c,cell(72));
+        for(String w:week){
+            TextView x=tv(w,10,muted());x.setGravity(Gravity.CENTER);
+            grid.addView(x,cell(28));
         }
-        content.addView(grid);content.addView(space(7));
-        TextView legend=tv("עברית גדול  •  לועזי קטן\nכחול = הצלחתי ✅    אדום = לא הצלחתי ❌",10,muted());legend.setGravity(Gravity.CENTER);content.addView(legend);
-        prev.setOnClickListener(v->{cursor.add(Calendar.MONTH,-1);showCalendar();});next.setOnClickListener(v->{cursor.add(Calendar.MONTH,1);showCalendar();});
+
+        java.util.Calendar first=(java.util.Calendar)cursor.clone();
+        first.set(Calendar.DAY_OF_MONTH,1);
+        int offset=first.get(Calendar.DAY_OF_WEEK)-1;
+        int max=cursor.getActualMaximum(Calendar.DAY_OF_MONTH);
+
+        // Only days belonging to the selected Gregorian month are rendered.
+        for(int i=0;i<offset;i++)grid.addView(new Space(this),cell(72));
+
+        for(int n=1;n<=max;n++){
+            java.util.Calendar d=(java.util.Calendar)cursor.clone();
+            d.set(Calendar.DAY_OF_MONTH,n);
+
+            JSONObject en=entry(d);
+            boolean isToday=sameDay(d,realToday);
+            boolean success=en!=null&&en.optBoolean("success");
+
+            int fill=en==null?panelColor():(success?Color.rgb(225,236,255):Color.rgb(252,226,229));
+            int mainColor=en==null?text():(success?Color.rgb(38,103,214):Color.rgb(199,54,70));
+
+            LinearLayout cellBox=new LinearLayout(this);
+            cellBox.setOrientation(LinearLayout.VERTICAL);
+            cellBox.setGravity(Gravity.CENTER);
+            cellBox.setPadding(dp(2),dp(3),dp(2),dp(3));
+
+            if(isToday){
+                cellBox.setBackground(outlineShape(fill,BLUE,2,12));
+            }else{
+                cellBox.setBackground(glass(fill,12));
+            }
+
+            TextView hd=tv(hebrewDay(d),19,mainColor);
+            hd.setGravity(Gravity.CENTER);hd.setTypeface(null,1);
+            cellBox.addView(hd,new LinearLayout.LayoutParams(-1,dp(32)));
+
+            TextView gd=tv(String.valueOf(n),10,muted());
+            gd.setGravity(Gravity.CENTER);
+            cellBox.addView(gd,new LinearLayout.LayoutParams(-1,dp(20)));
+
+            TextView mark=tv(en==null?"":(success?"✓":"×"),11,mainColor);
+            mark.setGravity(Gravity.CENTER);
+            cellBox.addView(mark,new LinearLayout.LayoutParams(-1,dp(16)));
+
+            cellBox.setOnClickListener(v->openEditor(d));
+            grid.addView(cellBox,cell(72));
+        }
+
+        content.addView(grid);
+        content.addView(space(7));
+
+        TextView legend=tv("רק ימי החודש הנבחר מוצגים\nהיום מסומן במסגרת כחולה • כחול = הצלחה ✅ • אדום = לא הצלחתי ❌",10,muted());
+        legend.setGravity(Gravity.CENTER);
+        content.addView(legend);
+
+        prev.setOnClickListener(v->{cursor.add(Calendar.MONTH,-1);showCalendar();});
+        next.setOnClickListener(v->{cursor.add(Calendar.MONTH,1);showCalendar();});
     }
 
     GridLayout.LayoutParams cell(int h){GridLayout.LayoutParams p=new GridLayout.LayoutParams();p.width=0;p.height=dp(h);p.columnSpec=GridLayout.spec(GridLayout.UNDEFINED,1,1f);p.setMargins(dp(2),dp(2),dp(2),dp(2));return p;}
 
     void showStats(){
         screen=2;navButtons.clear();base("התקדמות",true,false);
-        section("המסע שלך","מה קורה כאן? 🚀");
-        LinearLayout c=card();addBig(c,"רצף נוכחי 🔥",String.valueOf(currentStreak()));addBig(c,"שיא אישי 🏆",String.valueOf(bestStreak()));addBig(c,"הצלחות ✅",String.valueOf(successCount()));
-        int count=0,total=0;Iterator<String>it=days.keys();while(it.hasNext()){JSONObject o=entry(it.next());if(o!=null){count++;total+=o.optInt("score");}}
-        addBig(c,"ממוצע ציון ⭐",count==0?"—":String.format(Locale.US,"%.1f/10",total/(double)count));content.addView(c);content.addView(space(12));
-        LinearLayout m=card();m.addView(tv("עידוד 💜",11,ACCENT));m.addView(tv(currentStreak()>0?"אתה בתוך רצף. אל תזלזל ביום אחד נוסף.":"גם התחלה מחדש היא הצלחה. היום אפשר להתחיל את היום הראשון.",20,text()));content.addView(m);
+        section("הנתונים שלך","המסע שלך 💪");
+
+        LinearLayout c=card();
+        addBig(c,"🔥 רצף נוכחי",String.valueOf(currentStreak()));
+        addBig(c,"🏆 שיא אישי",String.valueOf(bestStreak()));
+        addBig(c,"✅ ימים שהצלחת",String.valueOf(successCount()));
+
+        double avg=averageScore();
+        addBig(c,"⭐ ממוצע ציון",Double.isNaN(avg)?"—":String.format(Locale.US,"%.1f/10",avg));
+        content.addView(c);
+        content.addView(space(10));
+
+        LinearLayout tip=card();
+        tip.addView(tv("עידוד",11,ACCENT));
+        tip.addView(tv(currentStreak()>0?"אתה כבר בתוך רצף. עוד יום אחד יכול לחזק את ההרגל. 🔥":"גם התחלה מחדש היא הצלחה. היום אפשר להתחיל. 🌱",18,text()));
+        content.addView(tip);
     }
 
     void addBig(LinearLayout c,String label,String value){LinearLayout r=new LinearLayout(this);r.setGravity(Gravity.CENTER_VERTICAL);TextView v=tv(value,27,text());v.setTypeface(null,1);r.addView(v,new LinearLayout.LayoutParams(dp(135),dp(62)));TextView l=tv(label,13,muted());r.addView(l,new LinearLayout.LayoutParams(0,dp(62),1));c.addView(r);}
@@ -313,51 +408,157 @@ public class MainActivity extends Activity {
     void showSettings(){
         screen=3;navButtons.clear();base("הגדרות",false,true);
         section("התאמה אישית","המראה והתזכורות ⚙️");
+
         LinearLayout c=card();
+
         LinearLayout appearance=new LinearLayout(this);appearance.setGravity(Gravity.CENTER_VERTICAL);
-        TextView a=tv("מצב כהה 🌙\nעיצוב זכוכית ואווירה מודרנית",14,text());appearance.addView(a,new LinearLayout.LayoutParams(0,dp(64),1));
-        Switch sw=new Switch(this);sw.setChecked(dark);sw.setOnCheckedChangeListener((b,checked)->{dark=checked;persist();showSettings();});appearance.addView(sw,new LinearLayout.LayoutParams(dp(64),dp(55)));c.addView(appearance);
+        TextView a=tv("מצב כהה 🌙\nמראה פשוט, ברור ומודרני",14,text());
+        appearance.addView(a,new LinearLayout.LayoutParams(0,dp(64),1));
+        Switch sw=new Switch(this);sw.setChecked(dark);
+        sw.setOnCheckedChangeListener((b,checked)->{dark=checked;persist();showSettings();});
+        appearance.addView(sw,new LinearLayout.LayoutParams(dp(60),dp(55)));
+        c.addView(appearance);
 
-        View line=space(1);line.setBackgroundColor(Color.argb(30,255,255,255));c.addView(line);
+        c.addView(space(8));
+
         LinearLayout remRow=new LinearLayout(this);remRow.setGravity(Gravity.CENTER_VERTICAL);
-        TextView rt=tv("תזכורת יומית 🔔\nתופיע גם כשהאפליקציה סגורה",14,text());remRow.addView(rt,new LinearLayout.LayoutParams(0,dp(70),1));
-        Switch rs=new Switch(this);rs.setChecked(reminder);rs.setOnCheckedChangeListener((b,checked)->{reminder=checked;persist();if(checked){requestNotificationPermissionIfNeeded();scheduleReminder();}else cancelReminder();});remRow.addView(rs,new LinearLayout.LayoutParams(dp(64),dp(55)));c.addView(remRow);
+        remRow.addView(tv("תזכורת יומית 🔔\nהתראה גם כשהאפליקציה סגורה",14,text()),new LinearLayout.LayoutParams(0,dp(64),1));
+        Switch rs=new Switch(this);rs.setChecked(reminder);
+        rs.setOnCheckedChangeListener((b,checked)->{
+            reminder=checked;persist();
+            if(checked){requestNotificationPermissionIfNeeded();scheduleReminder();}else cancelReminder();
+        });
+        remRow.addView(rs,new LinearLayout.LayoutParams(dp(60),dp(55)));
+        c.addView(remRow);
 
-        LinearLayout time=new LinearLayout(this);time.setGravity(Gravity.CENTER_VERTICAL);
-        TextView tl=tv("שעה ⏰",13,muted());time.addView(tl,new LinearLayout.LayoutParams(0,dp(64),1));
-        TimePicker picker=new TimePicker(this);picker.setIs24HourView(true);picker.setHour(reminderHour);picker.setMinute(reminderMinute);
-        picker.setOnTimeChangedListener((v,h,m)->{reminderHour=h;reminderMinute=m;persist();if(reminder)scheduleReminder();});
-        time.addView(picker,new LinearLayout.LayoutParams(dp(145),dp(75)));c.addView(time);
+        c.addView(space(8));
 
-        TextView note=tv("טיפ: כדאי לבחור שעה קבועה שבה סביר שתהיה עם הטלפון. 🔔",11,muted());note.setPadding(0,dp(7),0,dp(8));c.addView(note);
-        Button test=button("שלח בדיקת תזכורת עכשיו");test.setOnClickListener(v->sendTestNotification());c.addView(test,new LinearLayout.LayoutParams(-1,dp(50)));
+        Button timeButton=button("שעת התזכורת  ⏰  "+hm(reminderHour,reminderMinute));
+        timeButton.setOnClickListener(v->{
+            TimePickerDialog picker=new TimePickerDialog(
+                    MainActivity.this,
+                    (view,hourOfDay,minute)->{
+                        reminderHour=hourOfDay;reminderMinute=minute;
+                        persist();
+                        if(reminder)scheduleReminder();
+                        showSettings();
+                    },
+                    reminderHour,reminderMinute,true
+            );
+            picker.setTitle("בחר שעה לתזכורת");
+            picker.show();
+        });
+        c.addView(timeButton,new LinearLayout.LayoutParams(-1,dp(52)));
 
-        Button reset=button("איפוס כל הנתונים");reset.setTextColor(RED);reset.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("איפוס מעקב").setMessage("כל הימים, הציונים וההערות יימחקו מהמכשיר.").setNegativeButton("ביטול",null).setPositiveButton("איפוס",(d,w)->{days=new JSONObject();persist();showHome();}).show());c.addView(reset,new LinearLayout.LayoutParams(-1,dp(50)));
-        content.addView(c);content.addView(space(12));content.addView(tv("המעקב עובד מקומית. אין אתר חיצוני, אין Vercel, ואין צורך בחיבור קבוע לאינטרנט. ✅",12,muted()));
+        Button test=button("בדוק תזכורת עכשיו 🔔");
+        test.setOnClickListener(v->{requestNotificationPermissionIfNeeded();sendTestNotification();});
+        c.addView(test,new LinearLayout.LayoutParams(-1,dp(48)));
+
+        Button reset=button("איפוס כל הנתונים");reset.setTextColor(RED);
+        reset.setOnClickListener(v->new AlertDialog.Builder(this)
+                .setTitle("איפוס מעקב")
+                .setMessage("כל הימים והציונים יימחקו.")
+                .setNegativeButton("ביטול",null)
+                .setPositiveButton("איפוס",(d,w)->{days=new JSONObject();persist();showHome();})
+                .show());
+        c.addView(reset,new LinearLayout.LayoutParams(-1,dp(48)));
+
+        content.addView(c);
+        content.addView(space(10));
+        content.addView(tv("האפליקציה עובדת מקומית ואינה תלויה באתר חיצוני. ✅",12,muted()));
     }
 
     void requestNotificationPermissionIfNeeded(){if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},30);}
 
     void openEditor(java.util.Calendar d){
         selected=day(d);String k=key(selected);JSONObject e=entry(k);
-        LinearLayout box=vertical();box.setPadding(dp(22),dp(16),dp(22),dp(16));box.setBackground(glass(panelStrong(),28));
+
+        LinearLayout box=vertical();
+        box.setPadding(dp(22),dp(16),dp(22),dp(16));
+        box.setBackground(glass(panelStrong(),28));
+
         box.addView(tv(new SimpleDateFormat("EEEE, d בMMMM",new Locale("he","IL")).format(d.getTime()),22,text()));
         TextView heb=tv(hebrewFull(d),25,text());heb.setTypeface(null,1);box.addView(heb);
         box.addView(tv(gregNumeric(d),10,muted()));
         box.addView(space(7));
-        final boolean[] chosen={e!=null};final boolean[] ok={e!=null&&e.optBoolean("success")};final int[] score={e!=null?e.optInt("score",10):10};
-        LinearLayout ch=new LinearLayout(this);Button yes=button("הצלחתי ✅");Button no=button("לא הצלחתי 🤍");ch.addView(yes,new LinearLayout.LayoutParams(0,dp(52),1));ch.addView(no,new LinearLayout.LayoutParams(0,dp(52),1));box.addView(ch);
-        box.addView(tv("ציון ⭐ 1–10",11,muted()));
-        LinearLayout rs=new LinearLayout(this);rs.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);for(int i=1;i<=10;i++){final int s=i;Button b=button(String.valueOf(i));b.setOnClickListener(v->score[0]=s);rs.addView(b,new LinearLayout.LayoutParams(0,dp(45),1));}box.addView(rs);
-        EditText note=new EditText(this);note.setHint("הערה לעצמך (לא חובה)");note.setText(e==null?"":e.optString("note",""));note.setTextColor(text());note.setHintTextColor(muted());box.addView(note,new LinearLayout.LayoutParams(-1,dp(90)));
-        Button save=button("שמירת היום");save.setTextColor(Color.WHITE);save.setBackground(glass(ACCENT,16));box.addView(save,new LinearLayout.LayoutParams(-1,dp(52)));
-        Button clear=button("ניקוי הסימון");box.addView(clear,new LinearLayout.LayoutParams(-1,dp(48)));
+
+        final boolean[] chosen={e!=null};
+        final boolean[] ok={e!=null&&e.optBoolean("success")};
+        final int[] score={e!=null?e.optInt("score",10):10};
+
+        LinearLayout ch=new LinearLayout(this);
+        Button yes=button("הצלחתי ✅"),no=button("לא הצלחתי ❌");
+        ch.addView(yes,new LinearLayout.LayoutParams(0,dp(52),1));
+        ch.addView(no,new LinearLayout.LayoutParams(0,dp(52),1));
+        box.addView(ch);
+        box.addView(space(5));
+
+        box.addView(tv("איך היה היום? ⭐",12,muted()));
+        final Button[] scoreButtons=new Button[10];
+        LinearLayout row1=new LinearLayout(this), row2=new LinearLayout(this);
+        row1.setOrientation(LinearLayout.HORIZONTAL);
+        row2.setOrientation(LinearLayout.HORIZONTAL);
+        row1.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+        row2.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+
+        for(int i=1;i<=10;i++){
+            final int value=i;
+            Button b=button(String.valueOf(i));
+            b.setTextSize(14);
+            b.setOnClickListener(v->{
+                score[0]=value;
+                for(int j=0;j<10;j++){
+                    int n=j+1;
+                    scoreButtons[j].setBackgroundColor(n==score[0]?BLUE:(dark?Color.rgb(36,43,57):Color.rgb(232,235,241)));
+                    scoreButtons[j].setTextColor(n==score[0]?Color.WHITE:text());
+                }
+            });
+            scoreButtons[i-1]=b;
+            LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(0,dp(48),1);
+            bp.setMargins(dp(2),dp(2),dp(2),dp(2));
+            if(i<=5)row1.addView(b,bp);else row2.addView(b,bp);
+        }
+        box.addView(row1,new LinearLayout.LayoutParams(-1,dp(54)));
+        box.addView(row2,new LinearLayout.LayoutParams(-1,dp(54)));
+
+        for(int j=0;j<10;j++){
+            int n=j+1;
+            scoreButtons[j].setBackgroundColor(n==score[0]?BLUE:(dark?Color.rgb(36,43,57):Color.rgb(232,235,241)));
+            scoreButtons[j].setTextColor(n==score[0]?Color.WHITE:text());
+        }
+
+        EditText note=new EditText(this);
+        note.setHint("הערה לעצמך (לא חובה)");
+        note.setText(e==null?"":e.optString("note",""));
+        note.setTextColor(text());note.setHintTextColor(muted());
+        box.addView(note,new LinearLayout.LayoutParams(-1,dp(90)));
+
+        Button save=button("שמירת היום");
+        save.setTextColor(Color.WHITE);
+        save.setBackgroundColor(BLUE);
+        box.addView(save,new LinearLayout.LayoutParams(-1,dp(52)));
+
+        Button clear=button("ניקוי הסימון");
+        box.addView(clear,new LinearLayout.LayoutParams(-1,dp(48)));
+
         AlertDialog dialog=new AlertDialog.Builder(this).setView(box).create();
-        yes.setOnClickListener(v->{chosen[0]=true;ok[0]=true;yes.setBackground(glass(GREEN,15));no.setBackground(glass(panelStrong(),15));});
-        no.setOnClickListener(v->{chosen[0]=true;ok[0]=false;no.setBackground(glass(RED,15));yes.setBackground(glass(panelStrong(),15));});
-        save.setOnClickListener(v->{if(!chosen[0]){Toast.makeText(this,"בחר קודם אם הצלחת או לא",Toast.LENGTH_SHORT).show();return;}saveDay(k,ok[0],score[0],note.getText().toString());dialog.dismiss();if(screen==1)showCalendar();else if(screen==2)showStats();else showHome();});
-        clear.setOnClickListener(v->{removeDay(k);dialog.dismiss();if(screen==1)showCalendar();else showHome();});
-        dialog.getWindow();dialog.show();
+
+        yes.setOnClickListener(v->{chosen[0]=true;ok[0]=true;yes.setBackgroundColor(GREEN);no.setBackgroundColor(dark?Color.rgb(36,43,57):Color.rgb(232,235,241));});
+        no.setOnClickListener(v->{chosen[0]=true;ok[0]=false;no.setBackgroundColor(RED);yes.setBackgroundColor(dark?Color.rgb(36,43,57):Color.rgb(232,235,241));});
+
+        save.setOnClickListener(v->{
+            if(!chosen[0]){Toast.makeText(this,"בחר קודם אם הצלחת או לא",Toast.LENGTH_SHORT).show();return;}
+            saveDay(k,ok[0],score[0],note.getText().toString());
+            dialog.dismiss();
+            if(screen==1)showCalendar();else if(screen==2)showStats();else showHome();
+        });
+
+        clear.setOnClickListener(v->{
+            removeDay(k);dialog.dismiss();
+            if(screen==1)showCalendar();else if(screen==2)showStats();else showHome();
+        });
+
+        dialog.show();
     }
 
     void cancelReminder(){
