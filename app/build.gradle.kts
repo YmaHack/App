@@ -8,10 +8,10 @@ android {
 
     defaultConfig {
         applicationId = "com.ymahack.challenge"
-        minSdk = 23
+        minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "2.0.0"
     }
 
     buildTypes {
@@ -28,12 +28,8 @@ android {
         }
     }
 
-    packaging {
-        resources.excludes += setOf(
-            "META-INF/DEPENDENCIES",
-            "META-INF/LICENSE*",
-            "META-INF/NOTICE*",
-            "META-INF/*.kotlin_module"
-        )
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }
