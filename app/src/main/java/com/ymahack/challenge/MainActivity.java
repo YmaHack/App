@@ -273,7 +273,7 @@ public class MainActivity extends Activity {
         monthText.addView(hm,new LinearLayout.LayoutParams(-1,dp(42)));monthText.addView(gm,new LinearLayout.LayoutParams(-1,dp(22)));
         head.addView(prev,new LinearLayout.LayoutParams(dp(52),dp(52)));head.addView(monthText,new LinearLayout.LayoutParams(0,dp(74),1));head.addView(next,new LinearLayout.LayoutParams(dp(52),dp(52)));monthCard.addView(head);content.addView(monthCard);content.addView(space(10));
 
-        GridLayout grid=new GridLayout(this);grid.setColumnCount(7);grid.setPadding(dp(5),dp(8),dp(5),dp(8));grid.setBackgroundColor(card());
+        GridLayout grid=new GridLayout(this);grid.setColumnCount(7);grid.setPadding(dp(5),dp(8),dp(5),dp(8));grid.setBackgroundColor(panelColor());
         String[] week={"א","ב","ג","ד","ה","ו","ש"};
         for(String w:week){TextView x=tv(w,10,muted());x.setGravity(Gravity.CENTER);GridLayout.LayoutParams p=cell(28);grid.addView(x,p);}
         java.util.Calendar first=(java.util.Calendar)cursor.clone();first.set(Calendar.DAY_OF_MONTH,1);
@@ -282,17 +282,17 @@ public class MainActivity extends Activity {
         for(int n=1;n<=max;n++){
             java.util.Calendar d=(java.util.Calendar)cursor.clone();d.set(Calendar.DAY_OF_MONTH,n);
             JSONObject en=entry(d);
-            int fill=en==null?card():(en.optBoolean("success")?Color.rgb(224,235,255):Color.rgb(252,225,228));
+            int fill=en==null?panelColor():(en.optBoolean("success")?Color.rgb(224,235,255):Color.rgb(252,225,228));
             int mainColor=en==null?text():(en.optBoolean("success")?Color.rgb(36,96,205):Color.rgb(196,54,69));
             LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setGravity(Gravity.CENTER);c.setPadding(dp(2),dp(3),dp(2),dp(3));
-            c.setBackground(bgShape(fill,12));
+            c.setBackground(glass(fill,12));
             TextView a=tv(hebrewDay(d),18,mainColor);a.setGravity(Gravity.CENTER);a.setTypeface(null,1);c.addView(a,new LinearLayout.LayoutParams(-1,dp(32)));
             TextView b=tv(String.valueOf(n),10,muted());b.setGravity(Gravity.CENTER);c.addView(b,new LinearLayout.LayoutParams(-1,dp(20)));
             TextView mark=tv(en==null?"":(en.optBoolean("success")?"✓":"×"),11,mainColor);mark.setGravity(Gravity.CENTER);c.addView(mark,new LinearLayout.LayoutParams(-1,dp(16)));
             c.setOnClickListener(v->openEditor(d));
             grid.addView(c,cell(72));
         }
-        content.addView(grid);content.addView(gap(7));
+        content.addView(grid);content.addView(space(7));
         TextView legend=tv("עברית גדול  •  לועזי קטן\nכחול = הצלחתי ✅    אדום = לא הצלחתי ❌",10,muted());legend.setGravity(Gravity.CENTER);content.addView(legend);
         prev.setOnClickListener(v->{cursor.add(Calendar.MONTH,-1);showCalendar();});next.setOnClickListener(v->{cursor.add(Calendar.MONTH,1);showCalendar();});
     }
