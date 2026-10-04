@@ -267,6 +267,37 @@ public class MainActivity extends Activity {
         return hebrewDay(g)+" "+month+" "+year;
     }
 
+    java.util.Calendar hebrewMonthStart(java.util.Calendar reference){
+        android.icu.util.Calendar h=hebrew(reference);
+        h.set(android.icu.util.Calendar.DAY_OF_MONTH,1);
+        java.util.Calendar g=java.util.Calendar.getInstance();
+        g.setTimeInMillis(h.getTimeInMillis());
+        return day(g);
+    }
+
+    java.util.Calendar hebrewMonthEnd(java.util.Calendar reference){
+        android.icu.util.Calendar h=hebrew(reference);
+        int last=h.getActualMaximum(android.icu.util.Calendar.DAY_OF_MONTH);
+        h.set(android.icu.util.Calendar.DAY_OF_MONTH,last);
+        java.util.Calendar g=java.util.Calendar.getInstance();
+        g.setTimeInMillis(h.getTimeInMillis());
+        return day(g);
+    }
+
+    void moveHebrewMonth(int delta){
+        android.icu.util.Calendar h=hebrew(cursor);
+        h.set(android.icu.util.Calendar.DAY_OF_MONTH,1);
+        h.add(android.icu.util.Calendar.MONTH,delta);
+        java.util.Calendar g=java.util.Calendar.getInstance();
+        g.setTimeInMillis(h.getTimeInMillis());
+        cursor.setTimeInMillis(g.getTimeInMillis());
+    }
+
+    String hebrewMonthHeader(java.util.Calendar reference){
+        android.icu.util.Calendar h=hebrew(reference);
+        return hebrewMonth(reference)+" "+hebrewYearLetters(h.get(android.icu.util.Calendar.YEAR));
+    }
+
     String gregNumeric(java.util.Calendar g){return String.format(Locale.US,"%02d/%02d/%04d",g.get(Calendar.DAY_OF_MONTH),g.get(Calendar.MONTH)+1,g.get(Calendar.YEAR));}
     int dayIndex(){java.util.Calendar d=day(java.util.Calendar.getInstance());return d.get(Calendar.DAY_OF_YEAR)-1;}
 
@@ -316,7 +347,7 @@ public class MainActivity extends Activity {
 
     void showCalendar(){
         screen=1;navButtons.clear();base("לוח שנה",true,false);
-        TextView k=tv("עברית ↔ לועזי",10,muted());k.setTypeface(null,1);content.addView(k);
+        TextView k=tv("לוח עברי־לועזי",10,muted());k.setTypeface(null,1);content.addView(k);
 
         LinearLayout monthCard=card();
         LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);
@@ -326,9 +357,16 @@ public class MainActivity extends Activity {
         monthText.setOrientation(LinearLayout.VERTICAL);
         monthText.setGravity(Gravity.CENTER);
 
-        TextView hm=tv(hebrewMonth((java.util.Calendar)cursor.clone()),27,text());
+        TextView hm=tv(hebrewMonthHeader(cursor),27,text());
         hm.setGravity(Gravity.CENTER);hm.setTypeface(null,1);
-        TextView gy=tv(String.format(Locale.US,"%02d/%04d",cursor.get(Calendar.MONTH)+1,cursor.get(Calendar.YEAR)),11,muted());
+
+        java.util.Calendar startHeb=hebrewMonthStart(cursor);
+        java.util.Calendar endHeb=hebrewMonthEnd(cursor);
+        TextView gy=tv(
+                String.format(Locale.US,"%02d/%04d → %02d/%04d",
+                        startHeb.get(Calendar.MONTH)+1,startHeb.get(Calendar.YEAR),
+                        endHeb.get(Calendar.MONTH)+1,endHeb.get(Calendar.YEAR)),
+                10,muted());
         gy.setGravity(Gravity.CENTER);
 
         monthText.addView(hm,new LinearLayout.LayoutParams(-1,dp(40)));
@@ -340,8 +378,14 @@ public class MainActivity extends Activity {
         monthCard.addView(head);
 
         java.util.Calendar realToday=day(java.util.Calendar.getInstance());
-        boolean sameMonth=cursor.get(Calendar.YEAR)==realToday.get(Calendar.YEAR)&&cursor.get(Calendar.MONTH)==realToday.get(Calendar.MONTH);
-        todayBtn.setVisibility(sameMonth?View.GONE:View.VISIBLE);
+        android.icu.util.Calendar currentHeb=hebrew(realToday);
+        android.icu.util.Calendar selectedHeb=hebrew(cursor);
+
+        boolean sameHebrewMonth=
+                currentHeb.get(android.icu.util.Calendar.YEAR)==selectedHeb.get(android.icu.util.Calendar.YEAR) &&
+                currentHeb.get(android.icu.util.Calendar.MONTH)==selectedHeb.get(android.icu.util.Calendar.MONTH);
+
+        todayBtn.setVisibility(sameHebrewMonth?View.GONE:View.VISIBLE);
         todayBtn.setText("חזרה להיום 📅");
         todayBtn.setOnClickListener(v->{cursor.setTimeInMillis(realToday.getTimeInMillis());showCalendar();});
         LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(-1,dp(44));
@@ -363,76 +407,62 @@ public class MainActivity extends Activity {
             grid.addView(x,cell(26));
         }
 
-        java.util.Calendar first=(java.util.Calendar)cursor.clone();
-        first.set(Calendar.DAY_OF_MONTH,1);
-        int offset=first.get(Calendar.DAY_OF_WEEK)-1;
-        int daysInMonth=cursor.getActualMaximum(Calendar.DAY_OF_MONTH);
+        java.util.Calendar firstHeb=hebrewMonthStart(cursor);
+        java.util.Calendar lastHeb=hebrewMonthEnd(cursor);
 
-        java.util.Calendar prevMonth=(java.util.Calendar)cursor.clone();
-        prevMonth.add(Calendar.MONTH,-1);
-        int prevDays=prevMonth.getActualMaximum(Calendar.DAY_OF_MONTH);
+        // Start from the Sunday before/at the first Hebrew date so the grid is aligned.
+        java.util.Calendar gridStart=day(firstHeb);
+        gridStart.add(Calendar.DATE,1-gridStart.get(Calendar.DAY_OF_WEEK));
 
-        int totalCells=42;
-        for(int index=0;index<totalCells;index++){
-            boolean inCurrent=index>=offset && index<offset+daysInMonth;
-            java.util.Calendar d;
-            int displayNumber;
-            int dateColor;
-            int fill;
+        // End from the Saturday after/at the last Hebrew date.
+        java.util.Calendar gridEnd=day(lastHeb);
+        gridEnd.add(Calendar.DATE,7-gridEnd.get(Calendar.DAY_OF_WEEK));
 
-            if(inCurrent){
-                int dayNumber=index-offset+1;
-                d=(java.util.Calendar)cursor.clone();
-                d.set(Calendar.DAY_OF_MONTH,dayNumber);
-                displayNumber=dayNumber;
-            }else if(index<offset){
-                int dayNumber=prevDays-offset+index+1;
-                d=(java.util.Calendar)prevMonth.clone();
-                d.set(Calendar.DAY_OF_MONTH,dayNumber);
-                displayNumber=dayNumber;
-            }else{
-                int dayNumber=index-(offset+daysInMonth)+1;
-                d=(java.util.Calendar)cursor.clone();
-                d.add(Calendar.MONTH,1);
-                d.set(Calendar.DAY_OF_MONTH,dayNumber);
-                displayNumber=dayNumber;
-            }
+        java.util.Calendar walk=(java.util.Calendar)gridStart.clone();
+        while(!walk.after(gridEnd)){
+            java.util.Calendar d=day(walk);
+            android.icu.util.Calendar h=hebrew(d);
 
-            JSONObject en=inCurrent?entry(d):null;
-            boolean isToday=inCurrent&&sameDay(d,realToday);
+            boolean inHebrewMonth=
+                    h.get(android.icu.util.Calendar.YEAR)==selectedHeb.get(android.icu.util.Calendar.YEAR) &&
+                    h.get(android.icu.util.Calendar.MONTH)==selectedHeb.get(android.icu.util.Calendar.MONTH);
+
+            JSONObject en=inHebrewMonth?entry(d):null;
+            boolean isToday=inHebrewMonth&&sameDay(d,realToday);
             boolean success=en!=null&&en.optBoolean("success");
+
+            int fill;
+            int mainColor;
+            if(!inHebrewMonth){
+                fill=dark?Color.rgb(20,25,35):Color.rgb(246,247,249);
+                mainColor=Color.argb(dark?85:75,120,128,145);
+            }else{
+                fill=en==null?panelColor():(success?Color.rgb(225,236,255):Color.rgb(252,226,229));
+                mainColor=en==null?text():(success?Color.rgb(38,103,214):Color.rgb(199,54,70));
+            }
 
             LinearLayout cellBox=new LinearLayout(this);
             cellBox.setOrientation(LinearLayout.VERTICAL);
             cellBox.setGravity(Gravity.CENTER);
             cellBox.setPadding(dp(2),dp(3),dp(2),dp(3));
 
-            if(!inCurrent){
-                dateColor=Color.argb(dark?90:75,120,128,145);
-                fill=dark?Color.rgb(20,25,35):Color.rgb(246,247,249);
-                cellBox.setBackground(glass(fill,12));
+            if(inHebrewMonth && isToday){
+                cellBox.setBackground(outlineShape(fill,BLUE,2,12));
             }else{
-                dateColor=en==null?text():(success?Color.rgb(38,103,214):Color.rgb(199,54,70));
-                fill=en==null?panelColor():(success?Color.rgb(225,236,255):Color.rgb(252,226,229));
-                cellBox.setBackground(isToday?outlineShape(fill,BLUE,2,12):glass(fill,12));
+                cellBox.setBackground(glass(fill,12));
             }
 
-            TextView hd;
-            if(inCurrent){
-                hd=tv(hebrewDay(d),19,dateColor);
-                hd.setTypeface(null,1);
-            }else{
-                hd=tv(hebrewDay(d),15,dateColor);
-            }
+            TextView hd=tv(hebrewDay(d),inHebrewMonth?19:15,mainColor);
             hd.setGravity(Gravity.CENTER);
+            if(inHebrewMonth)hd.setTypeface(null,1);
             cellBox.addView(hd,new LinearLayout.LayoutParams(-1,dp(32)));
 
-            TextView gd=tv(String.valueOf(displayNumber),inCurrent?10:9,dateColor);
+            TextView gd=tv(String.valueOf(d.get(Calendar.DAY_OF_MONTH)),inHebrewMonth?10:9,mainColor);
             gd.setGravity(Gravity.CENTER);
             cellBox.addView(gd,new LinearLayout.LayoutParams(-1,dp(20)));
 
-            if(inCurrent){
-                TextView mark=tv(en==null?"":(success?"✓":"×"),11,dateColor);
+            if(inHebrewMonth){
+                TextView mark=tv(en==null?"":(success?"✓":"×"),11,mainColor);
                 mark.setGravity(Gravity.CENTER);
                 cellBox.addView(mark,new LinearLayout.LayoutParams(-1,dp(16)));
                 cellBox.setOnClickListener(v->openEditor(d));
@@ -441,17 +471,22 @@ public class MainActivity extends Activity {
             }
 
             grid.addView(cellBox,cell(72));
+            walk.add(Calendar.DATE,1);
         }
 
         content.addView(grid);
         content.addView(space(7));
 
-        TextView legend=tv("הימים הבהירים = החודש הנבחר\nהימים החלשים = סוף/תחילת חודש סמוך\nהיום במסגרת כחולה • כחול = הצלחה ✅ • אדום = לא הצלחתי ❌",10,muted());
+        TextView legend=tv(
+                "החודש העברי הוא הקובע\n"+
+                "הימים של החודש העברי מודגשים • לועזי קטן\n"+
+                "היום במסגרת כחולה • כחול = הצלחה ✅ • אדום = לא הצלחתי ❌",
+                10,muted());
         legend.setGravity(Gravity.CENTER);
         content.addView(legend);
 
-        prev.setOnClickListener(v->{cursor.add(Calendar.MONTH,-1);showCalendar();});
-        next.setOnClickListener(v->{cursor.add(Calendar.MONTH,1);showCalendar();});
+        prev.setOnClickListener(v->{moveHebrewMonth(-1);showCalendar();});
+        next.setOnClickListener(v->{moveHebrewMonth(1);showCalendar();});
     }
 
     GridLayout.LayoutParams cell(int h){GridLayout.LayoutParams p=new GridLayout.LayoutParams();p.width=0;p.height=dp(h);p.columnSpec=GridLayout.spec(GridLayout.UNDEFINED,1,1f);p.setMargins(dp(2),dp(2),dp(2),dp(2));return p;}
