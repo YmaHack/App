@@ -59,7 +59,7 @@ public class MainActivity extends Activity {
     int bg(){return dark?BG_DARK:BG_LIGHT;}
     int text(){return dark?TEXT_DARK:TEXT_LIGHT;}
     int muted(){return dark?MUTED_DARK:MUTED_LIGHT;}
-    int panel(){return card();}
+    int panelColor(){return dark?Color.rgb(25,31,43):Color.WHITE;}
     int panelStrong(){return dark?Color.rgb(31,38,52):Color.WHITE;}
 
     @Override public void onCreate(Bundle b){
@@ -112,7 +112,7 @@ public class MainActivity extends Activity {
     }
 
     LinearLayout vertical(){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);l.setPadding(dp(15),dp(8),dp(15),dp(18));l.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);return l;}
-    LinearLayout card(){LinearLayout c=vertical();c.setPadding(dp(18),dp(18),dp(18),dp(18));c.setBackground(glass(panel(),28));c.setElevation(dp(5));return c;}
+    LinearLayout card(){LinearLayout c=vertical();c.setPadding(dp(18),dp(18),dp(18),dp(18));c.setBackground(glass(panelColor(),28));c.setElevation(dp(5));return c;}
     View space(int h){View v=new View(this);v.setLayoutParams(new LinearLayout.LayoutParams(1,dp(h)));return v;}
 
     void base(String heading,boolean showNav,boolean settingsPage){
