@@ -52,14 +52,15 @@ public class MainActivity extends Activity {
         "היום אפשר לבחור מחדש."
     };
     final int[] quoteImages={
-        R.drawable.motivation_1,R.drawable.motivation_2,R.drawable.motivation_3,
-        R.drawable.motivation_4,R.drawable.motivation_5,R.drawable.motivation_6,R.drawable.motivation_7
+        R.drawable.scene_1,R.drawable.scene_2,R.drawable.scene_3
     };
 
     int dp(float v){ return (int)(v*getResources().getDisplayMetrics().density+.5f); }
     int bg(){return dark?BG_DARK:BG_LIGHT;}
     int text(){return dark?TEXT_DARK:TEXT_LIGHT;}
     int muted(){return dark?MUTED_DARK:MUTED_LIGHT;}
+    int panel(){return card();}
+    int panelStrong(){return dark?Color.rgb(31,38,52):Color.WHITE;}
 
     @Override public void onCreate(Bundle b){
         super.onCreate(b);
@@ -241,14 +242,21 @@ public class MainActivity extends Activity {
         TextView st=tv(status,14,e==null?ACCENT:(e.optBoolean("success")?GREEN:RED));st.setPadding(0,dp(9),0,dp(9));t.addView(st);
         Button edit=button(e==null?"עדכן את היום":"ערוך את היום");edit.setBackground(glass(ACCENT,16));edit.setTextColor(Color.WHITE);edit.setOnClickListener(v->openEditor(today));t.addView(edit,new LinearLayout.LayoutParams(-1,dp(50)));content.addView(t);content.addView(space(12));
 
-        LinearLayout quote=card();quote.setPadding(0,0,0,0);
-        ImageView image=new ImageView(this);image.setImageResource(quoteImages[dayIndex()%quoteImages.length]);image.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        quote.addView(image,new LinearLayout.LayoutParams(-1,dp(205)));
-        LinearLayout overlay=new LinearLayout(this);overlay.setOrientation(LinearLayout.VERTICAL);overlay.setPadding(dp(18),dp(16),dp(18),dp(18));overlay.setBackgroundColor(Color.argb(105,0,0,0));
-        overlay.addView(tv("✦ משפט היום",11,Color.WHITE));
-        overlay.addView(tv(quotes[dayIndex()%quotes.length],20,Color.WHITE));
-        overlay.addView(tv("חוזרים מחר לעוד יום. 🌿",11,Color.argb(225,255,255,255)));
-        FrameLayout quoteFrame=new FrameLayout(this);quote.removeAllViews();quoteFrame.addView(image,new FrameLayout.LayoutParams(-1,dp(205)));quoteFrame.addView(overlay,new FrameLayout.LayoutParams(-1,dp(205),Gravity.BOTTOM));quote.addView(quoteFrame);
+        LinearLayout quote=card();
+        quote.addView(tv("✦ משפט מוטיבציה",11,ACCENT));
+        LinearLayout quoteRow=new LinearLayout(this);
+        quoteRow.setGravity(Gravity.CENTER_VERTICAL);
+        quoteRow.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        ImageView scene=new ImageView(this);
+        scene.setImageResource(quoteImages[(int)(System.currentTimeMillis()/86400000)%quoteImages.length]);
+        scene.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        quoteRow.addView(scene,new LinearLayout.LayoutParams(dp(130),dp(130)));
+        String[] dailyQuotes={"אל תחכה למוטיבציה. תתחיל, והמוטיבציה תדביק אותך.","גם צעד קטן הוא תנועה קדימה.","אתה לא צריך לנצח את כל החיים היום. רק את היום הזה.","רצף נבנה מימים אמיתיים, לא מימים מושלמים.","הצלחה היא היכולת לחזור למסלול פעם נוספת."};
+        TextView qText=tv(dailyQuotes[(int)(System.currentTimeMillis()/86400000)%dailyQuotes.length],18,text());
+        qText.setPadding(dp(12),0,dp(8),0);
+        quoteRow.addView(qText,new LinearLayout.LayoutParams(0,dp(130),1));
+        quote.addView(quoteRow);
+        quote.addView(tv("גם מחר מחכה לך יום חדש. 🌿",11,muted()));
         content.addView(quote);
         TextView enc=tv(currentStreak()>0?"שמור על הקצב. עוד יום אחד יכול להפוך את הרצף להרגל. 🔥":"גם התחלה מחדש היא הצלחה. היום אפשר לבנות את היום הראשון. 🌱",13,muted());enc.setPadding(dp(5),dp(16),dp(5),dp(10));content.addView(enc);
     }
@@ -265,26 +273,27 @@ public class MainActivity extends Activity {
         monthText.addView(hm,new LinearLayout.LayoutParams(-1,dp(42)));monthText.addView(gm,new LinearLayout.LayoutParams(-1,dp(22)));
         head.addView(prev,new LinearLayout.LayoutParams(dp(52),dp(52)));head.addView(monthText,new LinearLayout.LayoutParams(0,dp(74),1));head.addView(next,new LinearLayout.LayoutParams(dp(52),dp(52)));monthCard.addView(head);content.addView(monthCard);content.addView(space(10));
 
-        GridLayout grid=new GridLayout(this);grid.setColumnCount(7);grid.setPadding(dp(7),dp(10),dp(7),dp(10));grid.setBackground(glass(panel(),24));
+        GridLayout grid=new GridLayout(this);grid.setColumnCount(7);grid.setPadding(dp(5),dp(8),dp(5),dp(8));grid.setBackgroundColor(card());
         String[] week={"א","ב","ג","ד","ה","ו","ש"};
-        for(String w:week){TextView x=tv(w,10,muted());x.setGravity(Gravity.CENTER);GridLayout.LayoutParams p=cell(30);grid.addView(x,p);}
+        for(String w:week){TextView x=tv(w,10,muted());x.setGravity(Gravity.CENTER);GridLayout.LayoutParams p=cell(28);grid.addView(x,p);}
         java.util.Calendar first=(java.util.Calendar)cursor.clone();first.set(Calendar.DAY_OF_MONTH,1);
         int offset=first.get(Calendar.DAY_OF_WEEK)-1,max=cursor.getActualMaximum(Calendar.DAY_OF_MONTH);
-        for(int i=0;i<offset;i++)grid.addView(new Space(this),cell(64));
+        for(int i=0;i<offset;i++)grid.addView(new Space(this),cell(72));
         for(int n=1;n<=max;n++){
-            java.util.Calendar d=(java.util.Calendar)cursor.clone();d.set(Calendar.DAY_OF_MONTH,n);JSONObject en=entry(d);
+            java.util.Calendar d=(java.util.Calendar)cursor.clone();d.set(Calendar.DAY_OF_MONTH,n);
+            JSONObject en=entry(d);
+            int fill=en==null?card():(en.optBoolean("success")?Color.rgb(224,235,255):Color.rgb(252,225,228));
+            int mainColor=en==null?text():(en.optBoolean("success")?Color.rgb(36,96,205):Color.rgb(196,54,69));
             LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setGravity(Gravity.CENTER);c.setPadding(dp(2),dp(3),dp(2),dp(3));
-            String hd=hebrewDay(d);
-            TextView a=tv(hd,17,text());a.setGravity(Gravity.CENTER);a.setTypeface(null,1);c.addView(a,new LinearLayout.LayoutParams(-1,dp(30)));
+            c.setBackground(bgShape(fill,12));
+            TextView a=tv(hebrewDay(d),18,mainColor);a.setGravity(Gravity.CENTER);a.setTypeface(null,1);c.addView(a,new LinearLayout.LayoutParams(-1,dp(32)));
             TextView b=tv(String.valueOf(n),10,muted());b.setGravity(Gravity.CENTER);c.addView(b,new LinearLayout.LayoutParams(-1,dp(20)));
-            TextView dot=tv(en==null?"○":en.optBoolean("success")?"●":"●",10,en==null?muted():en.optBoolean("success")?GREEN:RED);dot.setGravity(Gravity.CENTER);c.addView(dot,new LinearLayout.LayoutParams(-1,dp(17)));
-            boolean isToday=same(d,day(java.util.Calendar.getInstance()));
-            c.setBackground(glass(isToday?Color.argb(48,111,102,244):Color.TRANSPARENT,14));
+            TextView mark=tv(en==null?"":(en.optBoolean("success")?"✓":"×"),11,mainColor);mark.setGravity(Gravity.CENTER);c.addView(mark,new LinearLayout.LayoutParams(-1,dp(16)));
             c.setOnClickListener(v->openEditor(d));
             grid.addView(c,cell(72));
         }
-        content.addView(grid);content.addView(space(7));
-        TextView legend=tv("האותיות = תאריך עברי גדול  •  המספר = תאריך לועזי קטן\n✅ הצלחה   •   🔴 לא הצלחתי   •   ○ טרם עודכן",10,muted());legend.setGravity(Gravity.CENTER);content.addView(legend);
+        content.addView(grid);content.addView(gap(7));
+        TextView legend=tv("עברית גדול  •  לועזי קטן\nכחול = הצלחתי ✅    אדום = לא הצלחתי ❌",10,muted());legend.setGravity(Gravity.CENTER);content.addView(legend);
         prev.setOnClickListener(v->{cursor.add(Calendar.MONTH,-1);showCalendar();});next.setOnClickListener(v->{cursor.add(Calendar.MONTH,1);showCalendar();});
     }
 
