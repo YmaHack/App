@@ -66,11 +66,14 @@ public class MainActivity extends Activity {
     }
 
     void persist(){
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-            .putString(DATA, days.toString())
-            .putString(SETTINGS, new JSONObject()
-                .put("dark", dark).put("reminder", reminder)
-                .put("hour", reminderHour).put("minute", reminderMinute).toString()).apply();
+        try {
+            JSONObject x = new JSONObject();
+            x.put("dark", dark).put("reminder", reminder)
+             .put("hour", reminderHour).put("minute", reminderMinute);
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                .putString(DATA, days.toString())
+                .putString(SETTINGS, x.toString()).apply();
+        } catch(JSONException ignored) {}
     }
 
     int bg(){ return dark ? BG : Color.rgb(239,242,248); }
@@ -181,7 +184,7 @@ public class MainActivity extends Activity {
 
     String hebrewDate(java.util.Calendar g){
         try{
-            android.icu.util.Calendar c=android.icu.util.Calendar.getInstance(TimeZone.getDefault(), new Locale("he","IL","u-ca-hebrew"));
+            android.icu.util.Calendar c=android.icu.util.Calendar.getInstance(TimeZone.getDefault(), Locale.forLanguageTag("he-IL-u-ca-hebrew"));
             c.set(g.get(java.util.Calendar.YEAR),g.get(java.util.Calendar.MONTH),g.get(java.util.Calendar.DAY_OF_MONTH));
             DateFormat f=DateFormat.getDateInstance(DateFormat.LONG,new Locale("he","IL","u-ca-hebrew"));
             return f.format(new Date(g.getTimeInMillis()));
@@ -217,10 +220,16 @@ public class MainActivity extends Activity {
         Button prev=btn("‹");Button next=btn("›"); TextView m=tv(new SimpleDateFormat("MMMM yyyy",new Locale("he","IL")).format(cursor.getTime()),17,text());m.setGravity(Gravity.CENTER);row.addView(prev,new LinearLayout.LayoutParams(dp(55),dp(48)));row.addView(m,new LinearLayout.LayoutParams(0,dp(48),1));row.addView(next,new LinearLayout.LayoutParams(dp(55),dp(48)));head.addView(row);
         TextView hm=tv(hebrewDateAtMonth(),11,muted());hm.setGravity(Gravity.CENTER);head.addView(hm);content.addView(head);content.addView(spacer(10));
         GridLayout grid=new GridLayout(this);grid.setColumnCount(7);grid.setBackground(rounded(panel(),22));grid.setPadding(dp(6),dp(8),dp(6),dp(8));
-        String[] w={"א","ב","ג","ד","ה","ו","ש"};for(String s:w){TextView t=tv(s,10,muted());t.setGravity(Gravity.CENTER);grid.addView(t,new GridLayout.LayoutParams(new ViewGroup.LayoutParams(0,dp(30)){{width=0;}}));}
+        String[] w={"א","ב","ג","ד","ה","ו","ש"};
+        for(String s:w){
+            TextView t=tv(s,10,muted()); t.setGravity(Gravity.CENTER);
+            GridLayout.LayoutParams wp=new GridLayout.LayoutParams();
+            wp.width=0; wp.height=dp(30); wp.columnSpec=GridLayout.spec(GridLayout.UNDEFINED,1,1f);
+            grid.addView(t,wp);
+        }
         java.util.Calendar first=(java.util.Calendar)cursor.clone();first.set(java.util.Calendar.DAY_OF_MONTH,1);int offset=first.get(java.util.Calendar.DAY_OF_WEEK)-1;int max=cursor.getActualMaximum(java.util.Calendar.DAY_OF_MONTH);
         for(int i=0;i<offset;i++)grid.addView(new Space(this),cellParams());
-        for(int n=1;n<=max;n++){java.util.Calendar d=(java.util.Calendar)cursor.clone();d.set(java.util.Calendar.DAY_OF_MONTH,n);String k=key(d);JSONObject e=get(k);TextView cell=tv(String.valueOf(n)+"\n"+hebrewDay(d),10,text());cell.setGravity(Gravity.CENTER);if(e!=null)cell.setTextColor(e.optBoolean("success")?GREEN:RED);cell.setBackground(rounded(n==new java.util.Calendar().get(java.util.Calendar.DATE)&&cursor.get(java.util.Calendar.MONTH)==new java.util.Calendar().get(java.util.Calendar.MONTH)&&cursor.get(java.util.Calendar.YEAR)==new java.util.Calendar().get(java.util.Calendar.YEAR)?Color.argb(55,ACCENT>>>16,(ACCENT>>>8)&255,ACCENT&255):Color.TRANSPARENT,13));cell.setOnClickListener(v->openEditor(d));grid.addView(cell,cellParams());}
+        for(int n=1;n<=max;n++){java.util.Calendar d=(java.util.Calendar)cursor.clone();d.set(java.util.Calendar.DAY_OF_MONTH,n);String k=key(d);JSONObject e=get(k);TextView cell=tv(String.valueOf(n)+"\n"+hebrewDay(d),10,text());cell.setGravity(Gravity.CENTER);if(e!=null)cell.setTextColor(e.optBoolean("success")?GREEN:RED);cell.setBackground(rounded(n==java.util.Calendar.getInstance().get(java.util.Calendar.DATE)&&cursor.get(java.util.Calendar.MONTH)==java.util.Calendar.getInstance().get(java.util.Calendar.MONTH)&&cursor.get(java.util.Calendar.YEAR)==java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)?Color.argb(55,ACCENT>>>16,(ACCENT>>>8)&255,ACCENT&255):Color.TRANSPARENT,13));cell.setOnClickListener(v->openEditor(d));grid.addView(cell,cellParams());}
         content.addView(grid); TextView help=tv("ירוק = הצלחה   •   אדום = לא הצלחתי   •   לחיצה על יום לעריכה",10,muted());help.setGravity(Gravity.CENTER);help.setPadding(0,dp(12),0,0);content.addView(help);
         prev.setOnClickListener(v->{cursor.add(java.util.Calendar.MONTH,-1);showCalendar();});next.setOnClickListener(v->{cursor.add(java.util.Calendar.MONTH,1);showCalendar();});
     }
