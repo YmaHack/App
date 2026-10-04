@@ -31,7 +31,7 @@ public class MainActivity extends Activity {
     static final int RED = Color.rgb(240,120,128);
 
     final java.util.Calendar cursor = java.util.Calendar.getInstance();
-    final java.util.Calendar selected = java.util.Calendar.getInstance();
+    java.util.Calendar selected = java.util.Calendar.getInstance();
     JSONObject days = new JSONObject();
     boolean dark = true;
     boolean reminder = false;
