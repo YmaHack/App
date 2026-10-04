@@ -5,7 +5,6 @@ import android.app.*;
 import android.content.*;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
-import android.graphics.RenderEffect;
 import android.graphics.drawable.GradientDrawable;
 import android.icu.text.DateFormat;
 import android.icu.text.SimpleDateFormat;
@@ -61,8 +60,6 @@ public class MainActivity extends Activity {
     int bg(){return dark?BG_DARK:BG_LIGHT;}
     int text(){return dark?TEXT_DARK:TEXT_LIGHT;}
     int muted(){return dark?MUTED_DARK:MUTED_LIGHT;}
-    int panel(){return dark?Color.argb(92,255,255,255):Color.argb(205,255,255,255);}
-    int panelStrong(){return dark?Color.argb(126,255,255,255):Color.WHITE;}
 
     @Override public void onCreate(Bundle b){
         super.onCreate(b);
@@ -99,12 +96,18 @@ public class MainActivity extends Activity {
     }
 
     GradientDrawable glass(int fill,int radius){
-        GradientDrawable g=new GradientDrawable();g.setColor(fill);g.setCornerRadius(dp(radius));g.setStroke(dp(1),dark?Color.argb(48,255,255,255):Color.argb(32,50,60,80));return g;
+        GradientDrawable g=new GradientDrawable();
+        g.setColor(fill);
+        g.setCornerRadius(dp(radius));
+        return g;
     }
 
     Button button(String s){
         Button b=new Button(this);b.setText(s);b.setTextSize(11);b.setTextColor(text());b.setAllCaps(false);b.setMinHeight(0);b.setMinWidth(0);
-        b.setPadding(dp(7),0,dp(7),0);b.setBackground(glass(dark?Color.argb(70,255,255,255):Color.WHITE,15));b.setElevation(dp(1));return b;
+        b.setPadding(dp(7),0,dp(7),0);
+        b.setBackground(glass(dark?Color.rgb(36,43,57):Color.rgb(232,235,241),15));
+        b.setElevation(0);
+        return b;
     }
 
     LinearLayout vertical(){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);l.setPadding(dp(15),dp(8),dp(15),dp(18));l.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);return l;}
@@ -112,8 +115,8 @@ public class MainActivity extends Activity {
     View space(int h){View v=new View(this);v.setLayoutParams(new LinearLayout.LayoutParams(1,dp(h)));return v;}
 
     void base(String heading,boolean showNav,boolean settingsPage){
-        root=new FrameLayout(this);root.setBackgroundColor(bg());
-        addAurora();
+        root=new FrameLayout(this);
+        root.setBackgroundColor(bg());
         LinearLayout shell=new LinearLayout(this);shell.setOrientation(LinearLayout.VERTICAL);shell.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         root.addView(shell,new FrameLayout.LayoutParams(-1,-1));
         FrameLayout toolbar=new FrameLayout(this);toolbar.setPadding(dp(14),dp(10),dp(14),dp(7));
@@ -129,17 +132,6 @@ public class MainActivity extends Activity {
         shell.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         if(showNav)shell.addView(nav(),new LinearLayout.LayoutParams(-1,dp(80)));
         setContentView(root);
-    }
-
-    void addAurora(){
-        View one=new View(this);one.setBackground(glass(dark?Color.argb(120,93,75,255):Color.argb(85,138,112,255),260));FrameLayout.LayoutParams p1=new FrameLayout.LayoutParams(dp(260),dp(260),Gravity.TOP|Gravity.RIGHT);p1.setMargins(0,dp(-100),dp(-75),0);root.addView(one,p1);
-        View two=new View(this);two.setBackground(glass(dark?Color.argb(95,39,196,179):Color.argb(70,93,150,245),230));FrameLayout.LayoutParams p2=new FrameLayout.LayoutParams(dp(230),dp(230),Gravity.BOTTOM|Gravity.LEFT);p2.setMargins(dp(-80),0,0,dp(100));root.addView(two,p2);
-        View three=new View(this);three.setBackground(glass(dark?Color.argb(60,255,104,156):Color.argb(40,246,190,72),180));FrameLayout.LayoutParams p3=new FrameLayout.LayoutParams(dp(180),dp(180),Gravity.CENTER_HORIZONTAL|Gravity.TOP);p3.setMargins(0,dp(180),0,0);root.addView(three,p3);
-        if(Build.VERSION.SDK_INT>=31){
-            one.setRenderEffect(RenderEffect.createBlurEffect(dp(34),dp(34),android.graphics.Shader.TileMode.CLAMP));
-            two.setRenderEffect(RenderEffect.createBlurEffect(dp(30),dp(30),android.graphics.Shader.TileMode.CLAMP));
-            three.setRenderEffect(RenderEffect.createBlurEffect(dp(26),dp(26),android.graphics.Shader.TileMode.CLAMP));
-        }
     }
 
     View nav(){
