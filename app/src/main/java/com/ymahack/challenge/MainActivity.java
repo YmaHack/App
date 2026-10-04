@@ -20,6 +20,7 @@ import java.util.*;
 public class MainActivity extends Activity {
     static final String PREFS="challenge_store", DATA="days", SETTINGS="settings";
     static final String CHANNEL="challenge_reminders";
+    static final int BLUE=Color.rgb(54,112,220);
     static final int BG_DARK=Color.rgb(8,12,20), TEXT_DARK=Color.rgb(247,249,255), MUTED_DARK=Color.rgb(159,170,191);
     static final int BG_LIGHT=Color.rgb(240,243,249), TEXT_LIGHT=Color.rgb(21,25,35), MUTED_LIGHT=Color.rgb(101,112,130);
     static final int ACCENT=Color.rgb(111,102,244), GREEN=Color.rgb(47,198,141), RED=Color.rgb(239,106,119), GOLD=Color.rgb(246,190,72);
@@ -186,6 +187,7 @@ public class MainActivity extends Activity {
 
     int successCount(){int n=0;Iterator<String>it=days.keys();while(it.hasNext()){JSONObject o=days.optJSONObject(it.next());if(o!=null&&o.optBoolean("success"))n++;}return n;}
     boolean same(java.util.Calendar a,java.util.Calendar b){return a.get(Calendar.YEAR)==b.get(Calendar.YEAR)&&a.get(Calendar.DAY_OF_YEAR)==b.get(Calendar.DAY_OF_YEAR);}
+    boolean sameDay(java.util.Calendar a,java.util.Calendar b){return same(a,b);}
     int currentStreak(){
         java.util.Calendar d=day(java.util.Calendar.getInstance());JSONObject today=entry(d);
         if(today==null||!today.optBoolean("success"))d.add(Calendar.DATE,-1);
