@@ -5,6 +5,7 @@ import android.app.*;
 import android.content.*;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.RenderEffect;
 import android.graphics.drawable.GradientDrawable;
 import android.icu.text.DateFormat;
 import android.icu.text.SimpleDateFormat;
@@ -134,6 +135,11 @@ public class MainActivity extends Activity {
         View one=new View(this);one.setBackground(glass(dark?Color.argb(120,93,75,255):Color.argb(85,138,112,255),260));FrameLayout.LayoutParams p1=new FrameLayout.LayoutParams(dp(260),dp(260),Gravity.TOP|Gravity.RIGHT);p1.setMargins(0,dp(-100),dp(-75),0);root.addView(one,p1);
         View two=new View(this);two.setBackground(glass(dark?Color.argb(95,39,196,179):Color.argb(70,93,150,245),230));FrameLayout.LayoutParams p2=new FrameLayout.LayoutParams(dp(230),dp(230),Gravity.BOTTOM|Gravity.LEFT);p2.setMargins(dp(-80),0,0,dp(100));root.addView(two,p2);
         View three=new View(this);three.setBackground(glass(dark?Color.argb(60,255,104,156):Color.argb(40,246,190,72),180));FrameLayout.LayoutParams p3=new FrameLayout.LayoutParams(dp(180),dp(180),Gravity.CENTER_HORIZONTAL|Gravity.TOP);p3.setMargins(0,dp(180),0,0);root.addView(three,p3);
+        if(Build.VERSION.SDK_INT>=31){
+            one.setRenderEffect(RenderEffect.createBlurEffect(dp(34),dp(34),android.graphics.Shader.TileMode.CLAMP));
+            two.setRenderEffect(RenderEffect.createBlurEffect(dp(30),dp(30),android.graphics.Shader.TileMode.CLAMP));
+            three.setRenderEffect(RenderEffect.createBlurEffect(dp(26),dp(26),android.graphics.Shader.TileMode.CLAMP));
+        }
     }
 
     View nav(){
