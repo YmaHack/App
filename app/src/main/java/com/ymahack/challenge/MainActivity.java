@@ -990,21 +990,43 @@ public class MainActivity extends Activity {
     public static class ReminderReceiver extends BroadcastReceiver{
         @Override public void onReceive(Context c,Intent intent){
             android.content.SharedPreferences p=c.getSharedPreferences(PREFS,Context.MODE_PRIVATE);
-            String json=p.getString(SETTINGS,"{}");boolean enabled=false;int h=20,m=30;
-            try{JSONObject s=new JSONObject(json);enabled=s.optBoolean("reminder",false);h=s.optInt("hour",20);m=s.optInt("minute",30);}catch(Exception ignored){}
+            boolean enabled=false;int h=20,m=30,mask=127;
+            try{
+                JSONObject s=new JSONObject(p.getString(SETTINGS,"{}"));
+                enabled=s.optBoolean("reminder",false);
+                h=s.optInt("hour",20);m=s.optInt("minute",30);mask=s.optInt("daysMask",127);
+                if(mask<1||mask>127)mask=127;
+            }catch(Exception ignored){}
             if(!enabled)return;
+
             NotificationManager nm=(NotificationManager)c.getSystemService(Context.NOTIFICATION_SERVICE);
             if(Build.VERSION.SDK_INT>=26)nm.createNotificationChannel(new NotificationChannel(CHANNEL,"תזכורות אתגר יומי",NotificationManager.IMPORTANCE_HIGH));
-            Intent open=new Intent(c,MainActivity.class);PendingIntent pi=PendingIntent.getActivity(c,912,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+            Intent open=new Intent(c,MainActivity.class);
+            PendingIntent pi=PendingIntent.getActivity(c,912,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
             Notification.Builder b=Build.VERSION.SDK_INT>=26?new Notification.Builder(c,CHANNEL):new Notification.Builder(c);
-            b.setSmallIcon(android.R.drawable.ic_popup_reminder).setContentTitle("האתגר שלך מחכה לך 🔥").setContentText("גם היום אפשר לעשות צעד אחד קטן קדימה.").setContentIntent(pi).setAutoCancel(true).setPriority(Notification.PRIORITY_HIGH);
+            b.setSmallIcon(android.R.drawable.ic_popup_reminder)
+             .setContentTitle("האתגר שלך מחכה לך 🔥")
+             .setContentText("גם היום אפשר לעשות צעד אחד קטן קדימה.")
+             .setContentIntent(pi).setAutoCancel(true).setPriority(Notification.PRIORITY_HIGH);
             nm.notify(912,b.build());
 
             AlarmManager a=(AlarmManager)c.getSystemService(Context.ALARM_SERVICE);
-            Intent ni=new Intent(c,ReminderReceiver.class);
-            PendingIntent np=PendingIntent.getBroadcast(c,911,ni,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
-            java.util.Calendar next=java.util.Calendar.getInstance();next.add(java.util.Calendar.DATE,1);next.set(java.util.Calendar.HOUR_OF_DAY,h);next.set(java.util.Calendar.MINUTE,m);next.set(java.util.Calendar.SECOND,0);next.set(java.util.Calendar.MILLISECOND,0);
-            if(Build.VERSION.SDK_INT>=23)a.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,next.getTimeInMillis(),np);else a.set(AlarmManager.RTC_WAKEUP,next.getTimeInMillis(),np);
+            PendingIntent np=PendingIntent.getBroadcast(c,911,new Intent(c,ReminderReceiver.class),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+            java.util.Calendar now=java.util.Calendar.getInstance(),next=null;
+            for(int offset=1;offset<=8;offset++){
+                java.util.Calendar candidate=(java.util.Calendar)now.clone();
+                candidate.add(java.util.Calendar.DATE,offset);
+                candidate.set(java.util.Calendar.HOUR_OF_DAY,h);
+                candidate.set(java.util.Calendar.MINUTE,m);
+                candidate.set(java.util.Calendar.SECOND,0);
+                candidate.set(java.util.Calendar.MILLISECOND,0);
+                int dow=candidate.get(java.util.Calendar.DAY_OF_WEEK);
+                if((mask & (1<<(dow-1)))!=0){next=candidate;break;}
+            }
+            if(next!=null){
+                if(Build.VERSION.SDK_INT>=23)a.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,next.getTimeInMillis(),np);
+                else a.set(AlarmManager.RTC_WAKEUP,next.getTimeInMillis(),np);
+            }
         }
     }
 
@@ -1015,14 +1037,25 @@ public class MainActivity extends Activity {
             try{
                 JSONObject s=new JSONObject(p.getString(SETTINGS,"{}"));
                 if(!s.optBoolean("reminder",false))return;
-                int h=s.optInt("hour",20),m=s.optInt("minute",30);
+                int h=s.optInt("hour",20),m=s.optInt("minute",30),mask=s.optInt("daysMask",127);
+                if(mask<1||mask>127)mask=127;
                 AlarmManager a=(AlarmManager)c.getSystemService(Context.ALARM_SERVICE);
-                Intent i=new Intent(c,ReminderReceiver.class);
-                PendingIntent pi=PendingIntent.getBroadcast(c,911,i,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
-                java.util.Calendar next=java.util.Calendar.getInstance();next.set(Calendar.HOUR_OF_DAY,h);next.set(Calendar.MINUTE,m);next.set(Calendar.SECOND,0);next.set(Calendar.MILLISECOND,0);
-                if(next.getTimeInMillis()<=System.currentTimeMillis())next.add(Calendar.DATE,1);
-                if(Build.VERSION.SDK_INT>=23)a.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,next.getTimeInMillis(),pi);else a.set(AlarmManager.RTC_WAKEUP,next.getTimeInMillis(),pi);
+                PendingIntent pi=PendingIntent.getBroadcast(c,911,new Intent(c,ReminderReceiver.class),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+                java.util.Calendar now=java.util.Calendar.getInstance(),next=null;
+                for(int offset=0;offset<8;offset++){
+                    java.util.Calendar candidate=(java.util.Calendar)now.clone();
+                    candidate.add(java.util.Calendar.DATE,offset);
+                    candidate.set(Calendar.HOUR_OF_DAY,h);candidate.set(Calendar.MINUTE,m);
+                    candidate.set(Calendar.SECOND,0);candidate.set(Calendar.MILLISECOND,0);
+                    int dow=candidate.get(Calendar.DAY_OF_WEEK);
+                    if((mask & (1<<(dow-1)))!=0 && candidate.getTimeInMillis()>System.currentTimeMillis()){next=candidate;break;}
+                }
+                if(next!=null){
+                    if(Build.VERSION.SDK_INT>=23)a.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,next.getTimeInMillis(),pi);
+                    else a.set(AlarmManager.RTC_WAKEUP,next.getTimeInMillis(),pi);
+                }
             }catch(Exception ignored){}
         }
     }
+
 }
