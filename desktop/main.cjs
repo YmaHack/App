@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
@@ -51,9 +51,23 @@ function persist(){
 function localIPv4Addresses(){
   const out=[];
   for(const items of Object.values(os.networkInterfaces())){
-    for(const info of items||[]) if(info && info.family==="IPv4" && !info.internal) out.push(info.address);
+    for(const info of items||[]){
+      const family=info && info.family;
+      if(info && (family==="IPv4" || family===4) && !info.internal && info.address) out.push(info.address);
+    }
   }
-  return out;
+  return [...new Set(out)];
+}
+
+function syncInfo(){
+  const addresses=localIPv4Addresses();
+  return {
+    name:"אתגר יומי",
+    version:APP_VERSION,
+    port:PORT,
+    addresses:addresses.map(ip=>"http://"+ip+":"+PORT),
+    localhost:"http://127.0.0.1:"+PORT
+  };
 }
 function sendJson(res,code,data){
   const body=JSON.stringify(data);
@@ -74,7 +88,7 @@ function startSyncServer(){
     }
     const url=new URL(req.url,"http://127.0.0.1:"+PORT);
     if(req.method==="GET" && url.pathname==="/api/info"){
-      return sendJson(res,200,{name:"אתגר יומי",version:APP_VERSION,port:PORT,addresses:localIPv4Addresses().map(ip=>"http://"+ip+":"+PORT)});
+      return sendJson(res,200,syncInfo());
     }
     if(req.method==="GET" && url.pathname==="/api/state") return sendJson(res,200,state);
     if(req.method==="POST" && url.pathname==="/api/state"){
@@ -94,6 +108,19 @@ function startSyncServer(){
   });
   server.listen(PORT,"0.0.0.0");
 }
+ipcMain.handle("get-info",()=>syncInfo());
+ipcMain.handle("get-state",()=>state);
+ipcMain.handle("set-state",(_,days)=>{
+  state.days=mergeDays(state.days,days||{});
+  persist();
+  return state;
+});
+ipcMain.handle("replace-state",(_,days)=>{
+  state.days=(days && typeof days==="object")?days:{};
+  persist();
+  return state;
+});
+
 function createWindow(){
   mainWindow=new BrowserWindow({
     width:1180,height:820,minWidth:980,minHeight:680,
