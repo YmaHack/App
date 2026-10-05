@@ -436,10 +436,22 @@ public class MainActivity extends Activity {
         new Thread(()->{
             String error=null;
             try{
+                URL infoUrl=new URL(target+"/api/info");
+                HttpURLConnection infoConn=(HttpURLConnection)infoUrl.openConnection();
+                infoConn.setConnectTimeout(7000);
+                infoConn.setReadTimeout(7000);
+                infoConn.setRequestMethod("GET");
+                int infoCode=infoConn.getResponseCode();
+                InputStream infoIn=infoCode>=200&&infoCode<300?infoConn.getInputStream():infoConn.getErrorStream();
+                String infoResponse=infoIn==null?"":readStream(infoIn);
+                if(infoIn!=null)infoIn.close();
+                infoConn.disconnect();
+                if(infoCode<200||infoCode>=300)throw new IllegalStateException("שרת המחשב לא זמין (HTTP "+infoCode+")");
+
                 URL url=new URL(target+"/api/state");
                 HttpURLConnection conn=(HttpURLConnection)url.openConnection();
-                conn.setConnectTimeout(4500);
-                conn.setReadTimeout(7000);
+                conn.setConnectTimeout(7000);
+                conn.setReadTimeout(10000);
                 conn.setRequestMethod("POST");
                 conn.setDoInput(true);
                 conn.setDoOutput(true);
@@ -456,28 +468,32 @@ public class MainActivity extends Activity {
                 int code=conn.getResponseCode();
                 InputStream in=code>=200 && code<300?conn.getInputStream():conn.getErrorStream();
                 String response=in==null?"":readStream(in);
+                if(in!=null)in.close();
                 conn.disconnect();
-                if(code<200 || code>=300) throw new IllegalStateException("HTTP "+code);
+                if(code<200 || code>=300)throw new IllegalStateException("שגיאת שרת (HTTP "+code+")");
 
                 JSONObject remote=new JSONObject(response);
                 JSONObject merged=remote.optJSONObject("days");
-                if(merged==null) throw new IllegalArgumentException("missing days");
+                if(merged==null)throw new IllegalArgumentException("שרת המחשב החזיר תשובה לא תקינה");
                 days=new JSONObject(merged.toString());
                 persist();
-            }catch(Exception e){
-                error=e.getMessage()==null?"שגיאת חיבור":e.getMessage();
+            }catch(Exception ex){
+                error=ex.getMessage();
+                if(error==null||error.trim().isEmpty())error="לא ניתן להתחבר למחשב";
+                if(error.contains("Failed to connect")||error.contains("Connection refused")||error.contains("timeout")){
+                    error="לא ניתן להגיע למחשב. בדוק שהמחשב והת手机 באותה רשת ושחומת האש מאפשרת את התוכנה";
+                }
             }
             final String finalError=error;
             runOnUiThread(()->{
                 syncing=false;
-                if(showMessage){
-                    Toast.makeText(MainActivity.this,
-                        finalError==null?"הסנכרון הושלם בהצלחה ✅":"הסנכרון נכשל: "+finalError,
-                        Toast.LENGTH_LONG).show();
-                }
+                Toast.makeText(MainActivity.this,
+                    finalError==null?"הסנכרון הושלם בהצלחה ✅":(showMessage?"הסנכרון נכשל: "+finalError:"סנכרון נכשל"),
+                    showMessage?Toast.LENGTH_LONG:Toast.LENGTH_SHORT).show();
             });
         },"challenge-sync").start();
     }
+
 
     int successCount(){int n=0;Iterator<String>it=days.keys();while(it.hasNext()){JSONObject o=days.optJSONObject(it.next());if(o!=null&&o.optBoolean("success"))n++;}return n;}
     boolean same(java.util.Calendar a,java.util.Calendar b){return a.get(Calendar.YEAR)==b.get(Calendar.YEAR)&&a.get(Calendar.DAY_OF_YEAR)==b.get(Calendar.DAY_OF_YEAR);}
@@ -911,6 +927,18 @@ public class MainActivity extends Activity {
             syncAsync(true);
         });
         c.addView(syncSave,new LinearLayout.LayoutParams(-1,dp(48)));
+
+        Button ping=button("בדוק חיבור למחשב 🧪");
+        ping.setOnClickListener(v->{
+            syncUrl=syncField.getText().toString().trim();
+            persist();
+            if(syncUrl.isEmpty()){
+                Toast.makeText(this,"הכנס קודם את כתובת המחשב",Toast.LENGTH_SHORT).show();
+                return;
+            }
+            syncAsync(true);
+        });
+        c.addView(ping,new LinearLayout.LayoutParams(-1,dp(44)));
 
         LinearLayout syncRow=new LinearLayout(this);
         syncRow.setGravity(Gravity.CENTER_VERTICAL);
