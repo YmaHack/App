@@ -12,9 +12,11 @@
     "הצלחה היא היכולת לחזור למסלול פעם נוספת.","היום אפשר לבחור מחדש."
   ];
   const themes=[
-    ["אוקיינוס 🌊","#3670dc","#0b1220","#182334"],["יער 🌿","#2e8f63","#08140f","#16271f"],
-    ["לבנדר 💜","#7e5cd6","#120d1e","#231c31"],["שקיעה 🌅","#d45b65","#1c0c11","#2f1c22"],
-    ["ענבר ✨","#d18e2a","#191208","#2e2414"]
+    {name:"אוקיינוס 🌊",accent:"#3670dc",darkBg:"#0b1220",darkCard:"#182334",lightBg:"#f2f7fc",lightCard:"#ffffff"},
+    {name:"יער 🌿",accent:"#2e8f63",darkBg:"#08140f",darkCard:"#16271f",lightBg:"#f1f8f4",lightCard:"#ffffff"},
+    {name:"לבנדר 💜",accent:"#7e5cd6",darkBg:"#120d1e",darkCard:"#231c31",lightBg:"#f7f4fc",lightCard:"#ffffff"},
+    {name:"שקיעה 🌅",accent:"#d45b65",darkBg:"#1c0c11",darkCard:"#2f1c22",lightBg:"#fcf5f6",lightCard:"#ffffff"},
+    {name:"ענבר ✨",accent:"#d18e2a",darkBg:"#191208",darkCard:"#2e2414",lightBg:"#fcf8ef",lightCard:"#ffffff"}
   ];
   let days={},cursor=new Date(),themeIndex=0,dark=true,timer;
   const pad=n=>String(n).padStart(2,"0");
@@ -23,13 +25,33 @@
   const addDays=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n,12);
   const visibleEntry=d=>{const e=days[key(d)];return e&&!e.deleted?e:null;};
   function hp(d){const p={};for(const x of hebrewFmt.formatToParts(d))p[x.type]=x.value;return p;}
-  const hebrewDay=d=>hebrewDayFmt.format(d),hebrewMonth=d=>hebrewMonthFmt.format(d),hebrewYear=d=>hebrewYearFmt.format(d);
+  const hebrewNumericDayFmt = new Intl.DateTimeFormat("en-US-u-ca-hebrew",{day:"numeric"});
+  const hebrewNumericYearFmt = new Intl.DateTimeFormat("en-US-u-ca-hebrew",{year:"numeric"});
+  function hebrewNumber(value){
+    let n=Number(String(value).replace(/[^0-9]/g,""));
+    if(!Number.isFinite(n)||n<=0)return "";
+    const hundreds=["","ק","ר","ש","ת"],units=["","א","ב","ג","ד","ה","ו","ז","ח","ט"];
+    let out="";
+    while(n>=400){out+="ת";n-=400;}
+    if(n>=100){out+=hundreds[Math.min(4,Math.floor(n/100))];n%=100;}
+    if(n>=90){out+="צ";n-=90;}else if(n>=80){out+="פ";n-=80;}else if(n>=70){out+="ע";n-=70;}else if(n>=60){out+="ס";n-=60;}else if(n>=50){out+="נ";n-=50;}else if(n>=40){out+="מ";n-=40;}else if(n>=30){out+="ל";n-=30;}else if(n>=20){out+="כ";n-=20;}
+    if(n===16)return out+"טז";
+    if(n===15)return out+"טו";
+    if(n>0)out+=units[n];
+    if(out.length===1)return out+"׳";
+    return out.slice(0,-1)+"״"+out.slice(-1);
+  }
+  const hebrewDay=d=>hebrewNumber(hebrewNumericDayFmt.format(d)),hebrewMonth=d=>hebrewMonthFmt.format(d),hebrewYear=d=>hebrewNumber(Number(hebrewNumericYearFmt.format(d).replace(/[^0-9]/g,""))%5000);
   const hebrewTitle=d=>`${hebrewMonth(d)} ${hebrewYear(d)}`;
   const greg=d=>gregFmt.format(d), shortGreg=d=>gregShortFmt.format(d);
   const sameHebrewMonth=(a,b)=>{const pa=hp(a),pb=hp(b);return pa.month===pb.month&&pa.year===pb.year;};
   function startHebrewMonth(date){
     let d=cloneDate(date);
-    for(let i=0;i<40;i++){const hd=hebrewDay(d);if(hd==="א׳"||hd==="1")return d;d=addDays(d,-1);}
+    for(let i=0;i<40;i++){
+      const raw=Number(hebrewNumericDayFmt.format(d).replace(/[^0-9]/g,""));
+      if(raw===1)return d;
+      d=addDays(d,-1);
+    }
     return d;
   }
   function endHebrewMonth(date){
@@ -40,10 +62,14 @@
   function themeApply(){
     document.body.classList.toggle("light",!dark);
     const t=themes[themeIndex]||themes[0];
-    document.documentElement.style.setProperty("--accent",t[1]);
-    document.documentElement.style.setProperty("--dark-bg",t[2]);
-    document.documentElement.style.setProperty("--dark-card",t[3]);
-    document.documentElement.style.setProperty("--accent-soft",t[1]+"22");
+    document.documentElement.style.setProperty("--accent",t.accent);
+    document.documentElement.style.setProperty("--dark-bg",t.darkBg);
+    document.documentElement.style.setProperty("--dark-card",t.darkCard);
+    document.documentElement.style.setProperty("--light-bg",t.lightBg);
+    document.documentElement.style.setProperty("--light-card",t.lightCard);
+    document.documentElement.style.setProperty("--bg",dark?t.darkBg:t.lightBg);
+    document.documentElement.style.setProperty("--card",dark?t.darkCard:t.lightCard);
+    document.documentElement.style.setProperty("--accent-soft",t.accent+"22");
   }
   function successCount(){return Object.values(days).filter(e=>e&&!e.deleted&&e.success).length;}
   function currentStreak(){
@@ -117,7 +143,7 @@
     $("settings").innerHTML=`
       <div class="section-head"><div><div class="eyebrow">התאמה אישית</div><h2>המראה והסנכרון ⚙️</h2></div></div>
       <div class="card settings-card"><div class="card-label">ערכת נושא 🎨</div>
-      <div class="theme-grid">${themes.map((t,i)=>`<button class="theme-option ${themeIndex===i?"selected":""}" data-theme="${i}"><span class="dot" style="background:${t[1]}"></span>${t[0]}</button>`).join("")}</div>
+      <div class="theme-grid">${themes.map((t,i)=>`<button class="theme-option ${themeIndex===i?"selected":""}" data-theme="${i}"><span class="dot" style="background:${t.accent}"></span>${t.name}</button>`).join("")}</div>
       <label class="setting-row"><span><b>מצב כהה 🌙</b><small>מראה נקי ומודרני</small></span><input id="darkToggle" type="checkbox" ${dark?"checked":""}></label><hr>
       <div class="card-label">סנכרון עם הטלפון 📱</div>
       <p class="muted">התוכנה פותחת שרת מקומי ברשת הביתית. הזן באפליקציית Android כתובת מהשורות הבאות. אין צורך בחשבון ענן.</p>
@@ -134,50 +160,56 @@
     loadAddresses();$("exportBtn").onclick=exportBackup;$("importFile").onchange=importBackup;
   }
   async function loadAddresses(){
-    try{const info=await window.desktopAPI.getInfo();$("addresses").innerHTML=(info.addresses||[]).map(a=>`<code>${a}</code>`).join("");setSyncPill("● מוכן לסנכרון","");}
-    catch{$("addresses").textContent="לא ניתן לקרוא את כתובת הסנכרון.";setSyncPill("● אין חיבור לשרת המקומי","bad");}
+    try{
+      const info=await window.desktopAPI.getInfo();
+      const addresses=info.addresses||[];
+      if(addresses.length===0){
+        $("addresses").innerHTML="<code>אין כתובת רשת זמינה. בדוק שה-Wi‑Fi/Ethernet מחובר.</code><code>מחשב מקומי: "+(info.localhost||"http://127.0.0.1:39225")+"</code>";
+        setSyncPill("● המחשב מוכן, אין כתובת LAN","bad");
+      }else{
+        $("addresses").innerHTML=addresses.map(a=>"<code>"+a+"</code>").join("");
+        setSyncPill("● כתובת הסנכרון מוכנה ✅","ok");
+      }
+    }catch(e){
+      $("addresses").innerHTML="<code>שגיאה בקריאת כתובת הסנכרון.</code><code>localhost: http://127.0.0.1:39225</code>";
+      setSyncPill("● תקלה מקומית בסנכרון","bad");
+    }
   }
   const setSyncPill=(t,c="")=>{$("syncPill").textContent=t;$("syncPill").className="sync-pill "+c;};
   function saveLocalPrefs(){localStorage.setItem("challenge-desktop-prefs",JSON.stringify({themeIndex,dark}));}
   function loadLocalPrefs(){try{const p=JSON.parse(localStorage.getItem("challenge-desktop-prefs")||"{}");if(Number.isInteger(p.themeIndex))themeIndex=Math.max(0,Math.min(4,p.themeIndex));if(typeof p.dark==="boolean")dark=p.dark;}catch{}themeApply();}
   function closeModal(){$("modal").classList.add("hidden");$("modalCard").innerHTML="";}
   $("modal").addEventListener("click",e=>{if(e.target.dataset.closeModal)closeModal();});
-  function openEditor(date){
-    const k=key(date),e=visibleEntry(date);let success=e?!!e.success:null,score=e?Number(e.score)||10:10;
-    $("modalCard").innerHTML=`
-      <div class="modal-title">${new Intl.DateTimeFormat("he-IL",{weekday:"long",day:"numeric",month:"long"}).format(date)}</div>
-      <div class="hebrew-big">${hebrewFmt.format(date)}</div><div class="muted">${greg(date)}</div>
-      <div class="choice-row"><button id="yesBtn" class="choice">הצלחתי ✅</button><button id="noBtn" class="choice">לא הצלחתי ❌</button></div>
-      <div class="card-label">איך היה היום? ⭐</div><div class="score-grid">${Array.from({length:10},(_,i)=>`<button data-score="${i+1}" class="score-btn">${i+1}</button>`).join("")}</div>
-      <textarea id="note" placeholder="הערה לעצמך (לא חובה)"></textarea>
-      <div class="modal-actions"><button id="clearDay" class="danger secondary">ניקוי הסימון</button><button id="saveDay" class="primary">שמירת היום</button></div>
-    `;
-    const yes=$("yesBtn"),no=$("noBtn"),note=$("note");
-    const updateChoices=()=>{yes.classList.toggle("selected-ok",success===true);no.classList.toggle("selected-bad",success===false);};
-    yes.onclick=()=>{success=true;updateChoices();};no.onclick=()=>{success=false;updateChoices();};
-    document.querySelectorAll(".score-btn").forEach(b=>b.onclick=()=>{score=Number(b.dataset.score);document.querySelectorAll(".score-btn").forEach(x=>x.classList.toggle("selected",Number(x.dataset.score)===score));});
-    note.value=e?.note||"";updateChoices();document.querySelectorAll(".score-btn").forEach(x=>x.classList.toggle("selected",Number(x.dataset.score)===score));
-    $("saveDay").onclick=async()=>{if(success===null){alert("בחר קודם אם הצלחת או לא");return;}days[k]={success,score,note:note.value,deleted:false,updatedAt:Date.now()};await pushState();closeModal();renderAll();};
-    $("clearDay").onclick=async()=>{days[k]={deleted:true,updatedAt:Date.now()};await pushState();closeModal();renderAll();};
-    $("modal").classList.remove("hidden");
-  }
-  async function pushState(){
-    try{const r=await window.desktopAPI.setState(days);if(r?.days)days=r.days;setSyncPill("● מסונכרן ✅","ok");return true;}
-    catch{setSyncPill("● לא מסונכרן","bad");return false;}
-  }
-  async function loadState(){
-    try{const s=await window.desktopAPI.getState();if(s?.days)days=s.days;setSyncPill("● מוכן לסנכרון","");}
-    catch{setSyncPill("● אין חיבור לשרת המקומי","bad");}
-  }
-  function exportBackup(){
-    const blob=new Blob([JSON.stringify({format:"daily-challenge-backup",version:1,createdAt:Date.now(),days},null,2)],{type:"application/json"});
-    const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="אתגר-יומי-גיבוי-"+key(new Date())+".json";a.click();URL.revokeObjectURL(url);
-  }
-  function importBackup(e){
-    const file=e.target.files?.[0];if(!file)return;const reader=new FileReader();
-    reader.onload=async()=>{try{const p=JSON.parse(reader.result);if(!p.days)throw new Error();if(!confirm("השחזור יחליף את ימי המעקב הקיימים בגיבוי. להמשיך?"))return;days=p.days;await pushState();renderAll();}catch{alert("קובץ הגיבוי לא תקין");}finally{e.target.value="";}};
+  function renderAll(){const v=document.querySelector(".screen:not(.hidden)")?.id||"home";setScreen(v);}
+  document.querySelectorAll(".nav-item").forEach(b=>b.onclick=()=>setScreen(b.dataset.screen));
+  $("settingsBtn").onclick=()=>setScreen("settings");loadLocalPrefs();
+  window.desktopAPI?.onStateChanged(()=>{clearTimeout(timer);timer=setTimeout(async()=>{await loadState();renderAll();},150);});
+  (async()=>{await loadState();renderHome();setInterval(async()=>{await loadState();const a=document.querySelector(".screen:not(.hidden)")?.id;if(a==="home"||a==="calendar"||a==="stats")renderAll();},3000);})();
+})()  function importBackup(e){
+    const file=e.target.files?.[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=async()=>{
+      try{
+        const parsed=JSON.parse(reader.result);
+        const imported=(parsed&&parsed.days&&typeof parsed.days==="object")?parsed.days:parsed;
+        if(!imported||typeof imported!=="object"||Array.isArray(imported))throw new Error("bad");
+        const normalized={}; let offset=0;
+        for(const [k,v] of Object.entries(imported)){
+          if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(k)||!v||typeof v!=="object")continue;
+          normalized[k]={...v,updatedAt:Number(v.updatedAt)||Date.now()+offset++,deleted:v.deleted===true};
+        }
+        if(Object.keys(normalized).length===0)throw new Error("empty");
+        if(!confirm("השחזור יחליף את נתוני המעקב במחשב בגיבוי. להמשיך?"))return;
+        const r=await window.desktopAPI.replaceState(normalized);
+        days=r?.days||normalized;
+        setSyncPill("● הגיבוי שוחזר ✅","ok");
+        renderAll();
+      }catch(err){alert("קובץ הגיבוי לא תקין או שאין בו ימי מעקב.");}
+      finally{e.target.value="";}
+    };
     reader.readAsText(file);
   }
+
   function renderAll(){const v=document.querySelector(".screen:not(.hidden)")?.id||"home";setScreen(v);}
   document.querySelectorAll(".nav-item").forEach(b=>b.onclick=()=>setScreen(b.dataset.screen));
   $("settingsBtn").onclick=()=>setScreen("settings");loadLocalPrefs();
