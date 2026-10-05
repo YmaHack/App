@@ -151,6 +151,7 @@ function createWindow(){
   mainWindow=new BrowserWindow({
     width:1180,height:820,minWidth:980,minHeight:680,
     backgroundColor:"#0b1220",title:"אתגר יומי",
+    icon:path.join(__dirname,"icon.ico"),
     webPreferences:{preload:path.join(__dirname,"preload.cjs"),contextIsolation:true,nodeIntegration:false}
   });
   mainWindow.loadFile(path.join(__dirname,"index.html"));
