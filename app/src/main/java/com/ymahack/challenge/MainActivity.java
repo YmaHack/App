@@ -908,14 +908,35 @@ public class MainActivity extends Activity {
         a.cancel(p);
     }
 
+    boolean reminderDayEnabled(int dayOfWeek){
+        return (reminderDaysMask & (1 << (dayOfWeek-1))) != 0;
+    }
+
+    java.util.Calendar nextReminderTime(){
+        java.util.Calendar now=java.util.Calendar.getInstance();
+        for(int offset=0;offset<8;offset++){
+            java.util.Calendar candidate=(java.util.Calendar)now.clone();
+            candidate.add(java.util.Calendar.DATE,offset);
+            candidate.set(java.util.Calendar.HOUR_OF_DAY,reminderHour);
+            candidate.set(java.util.Calendar.MINUTE,reminderMinute);
+            candidate.set(java.util.Calendar.SECOND,0);
+            candidate.set(java.util.Calendar.MILLISECOND,0);
+            if(reminderDayEnabled(candidate.get(java.util.Calendar.DAY_OF_WEEK)) && candidate.getTimeInMillis()>System.currentTimeMillis()){
+                return candidate;
+            }
+        }
+        return now;
+    }
+
     void scheduleReminder(){
         AlarmManager a=(AlarmManager)getSystemService(ALARM_SERVICE);
         Intent i=new Intent(this,ReminderReceiver.class);
         PendingIntent p=PendingIntent.getBroadcast(this,911,i,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
-        a.cancel(p);if(!reminder)return;
-        java.util.Calendar next=java.util.Calendar.getInstance();next.set(Calendar.HOUR_OF_DAY,reminderHour);next.set(Calendar.MINUTE,reminderMinute);next.set(Calendar.SECOND,0);next.set(Calendar.MILLISECOND,0);
-        if(next.getTimeInMillis()<=System.currentTimeMillis())next.add(Calendar.DATE,1);
-        if(Build.VERSION.SDK_INT>=23)a.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,next.getTimeInMillis(),p);else a.set(AlarmManager.RTC_WAKEUP,next.getTimeInMillis(),p);
+        a.cancel(p);
+        if(!reminder)return;
+        java.util.Calendar next=nextReminderTime();
+        if(Build.VERSION.SDK_INT>=23)a.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,next.getTimeInMillis(),p);
+        else a.set(AlarmManager.RTC_WAKEUP,next.getTimeInMillis(),p);
     }
 
     void sendTestNotification(){
