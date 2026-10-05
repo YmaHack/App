@@ -180,12 +180,7 @@
   function loadLocalPrefs(){try{const p=JSON.parse(localStorage.getItem("challenge-desktop-prefs")||"{}");if(Number.isInteger(p.themeIndex))themeIndex=Math.max(0,Math.min(4,p.themeIndex));if(typeof p.dark==="boolean")dark=p.dark;}catch{}themeApply();}
   function closeModal(){$("modal").classList.add("hidden");$("modalCard").innerHTML="";}
   $("modal").addEventListener("click",e=>{if(e.target.dataset.closeModal)closeModal();});
-  function renderAll(){const v=document.querySelector(".screen:not(.hidden)")?.id||"home";setScreen(v);}
-  document.querySelectorAll(".nav-item").forEach(b=>b.onclick=()=>setScreen(b.dataset.screen));
-  $("settingsBtn").onclick=()=>setScreen("settings");loadLocalPrefs();
-  window.desktopAPI?.onStateChanged(()=>{clearTimeout(timer);timer=setTimeout(async()=>{await loadState();renderAll();},150);});
-  (async()=>{await loadState();renderHome();setInterval(async()=>{await loadState();const a=document.querySelector(".screen:not(.hidden)")?.id;if(a==="home"||a==="calendar"||a==="stats")renderAll();},3000);})();
-})()  function importBackup(e){
+  function importBackup(e){
     const file=e.target.files?.[0];if(!file)return;
     const reader=new FileReader();
     reader.onload=async()=>{
@@ -193,7 +188,7 @@
         const parsed=JSON.parse(reader.result);
         const imported=(parsed&&parsed.days&&typeof parsed.days==="object")?parsed.days:parsed;
         if(!imported||typeof imported!=="object"||Array.isArray(imported))throw new Error("bad");
-        const normalized={}; let offset=0;
+        const normalized={};let offset=0;
         for(const [k,v] of Object.entries(imported)){
           if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(k)||!v||typeof v!=="object")continue;
           normalized[k]={...v,updatedAt:Number(v.updatedAt)||Date.now()+offset++,deleted:v.deleted===true};
