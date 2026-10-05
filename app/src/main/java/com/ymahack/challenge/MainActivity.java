@@ -6,6 +6,7 @@ import android.content.*;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.icu.text.DateFormat;
 import android.icu.text.SimpleDateFormat;
 import android.icu.util.TimeZone;
@@ -15,6 +16,12 @@ import android.widget.*;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class MainActivity extends Activity {
@@ -29,6 +36,7 @@ public class MainActivity extends Activity {
     boolean dark=true, reminder=false;
     int themeIndex=0;
     int reminderHour=20, reminderMinute=30;
+    int reminderDaysMask=127;
 
     final String[] themeNames={"אוקיינוס 🌊","יער 🌿","לבנדר 💜","שקיעה 🌅","ענבר ✨"};
 
@@ -144,20 +152,56 @@ public class MainActivity extends Activity {
     }
 
     void load(){
-        try{days=new JSONObject(getSharedPreferences(PREFS,MODE_PRIVATE).getString(DATA,"{}"));}catch(Exception e){days=new JSONObject();}
+        boolean loaded=false;
+        try{
+            String saved=getSharedPreferences(PREFS,MODE_PRIVATE).getString(DATA,"");
+            if(saved!=null && !saved.isEmpty()){
+                days=new JSONObject(saved);
+                loaded=true;
+            }
+        }catch(Exception ignored){}
+        if(!loaded){
+            try{
+                File f=new File(getFilesDir(),"days_backup.json");
+                if(f.exists()){
+                    FileInputStream in=new FileInputStream(f);
+                    byte[] data=new byte[(int)f.length()];
+                    int read=in.read(data);
+                    in.close();
+                    days=new JSONObject(new String(data,StandardCharsets.UTF_8));
+                }else days=new JSONObject();
+            }catch(Exception e){days=new JSONObject();}
+        }
         try{
             JSONObject s=new JSONObject(getSharedPreferences(PREFS,MODE_PRIVATE).getString(SETTINGS,"{}"));
-            dark=s.optBoolean("dark",true); reminder=s.optBoolean("reminder",false);
+            dark=s.optBoolean("dark",true);
+            reminder=s.optBoolean("reminder",false);
             themeIndex=Math.max(0,Math.min(4,s.optInt("theme",0)));
-            reminderHour=s.optInt("hour",20); reminderMinute=s.optInt("minute",30);
+            reminderHour=s.optInt("hour",20);
+            reminderMinute=s.optInt("minute",30);
+            reminderDaysMask=s.optInt("daysMask",127);
+            if(reminderDaysMask<1 || reminderDaysMask>127) reminderDaysMask=127;
         }catch(Exception ignored){}
     }
 
     void persist(){
         try{
             JSONObject s=new JSONObject();
-            s.put("dark",dark).put("reminder",reminder).put("theme",themeIndex).put("hour",reminderHour).put("minute",reminderMinute);
-            getSharedPreferences(PREFS,MODE_PRIVATE).edit().putString(DATA,days.toString()).putString(SETTINGS,s.toString()).apply();
+            s.put("dark",dark).put("reminder",reminder).put("theme",themeIndex)
+             .put("hour",reminderHour).put("minute",reminderMinute).put("daysMask",reminderDaysMask);
+            getSharedPreferences(PREFS,MODE_PRIVATE).edit()
+                .putString(DATA,days.toString()).putString(SETTINGS,s.toString()).apply();
+
+            File tmp=new File(getFilesDir(),"days_backup.tmp");
+            File outFile=new File(getFilesDir(),"days_backup.json");
+            FileOutputStream out=new FileOutputStream(tmp,false);
+            out.write(days.toString().getBytes(StandardCharsets.UTF_8));
+            out.flush();out.close();
+            if(!tmp.renameTo(outFile)){
+                FileOutputStream direct=new FileOutputStream(outFile,false);
+                direct.write(days.toString().getBytes(StandardCharsets.UTF_8));
+                direct.flush();direct.close();tmp.delete();
+            }
         }catch(Exception ignored){}
     }
 
@@ -182,6 +226,68 @@ public class MainActivity extends Activity {
 
     String hm(int h,int m){
         return String.format(Locale.US,"%02d:%02d",h,m);
+    }
+
+    static final int REQ_EXPORT=7001, REQ_IMPORT=7002;
+
+    void exportBackup(){
+        try{
+            Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            i.addCategory(Intent.CATEGORY_OPENABLE);
+            i.setType("application/json");
+            i.putExtra(Intent.EXTRA_TITLE,"אתגר-יומי-גיבוי-"+new SimpleDateFormat("yyyy-MM-dd",Locale.US).format(new Date())+".json");
+            startActivityForResult(i,REQ_EXPORT);
+        }catch(Exception e){Toast.makeText(this,"לא ניתן לפתוח שמירת גיבוי",Toast.LENGTH_SHORT).show();}
+    }
+
+    void importBackup(){
+        try{
+            Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            i.addCategory(Intent.CATEGORY_OPENABLE);
+            i.setType("application/json");
+            startActivityForResult(i,REQ_IMPORT);
+        }catch(Exception e){Toast.makeText(this,"לא ניתן לפתוח בחירת גיבוי",Toast.LENGTH_SHORT).show();}
+    }
+
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
+        super.onActivityResult(requestCode,resultCode,data);
+        if(resultCode!=RESULT_OK || data==null || data.getData()==null)return;
+        Uri uri=data.getData();
+        try{
+            InputStream in;
+            if(requestCode==REQ_EXPORT){
+                JSONObject wrapper=new JSONObject();
+                wrapper.put("format","daily-challenge-backup").put("version",1)
+                    .put("createdAt",System.currentTimeMillis()).put("days",days);
+                OutputStream out=getContentResolver().openOutputStream(uri);
+                if(out==null)throw new IllegalStateException();
+                out.write(wrapper.toString(2).getBytes(StandardCharsets.UTF_8));
+                out.flush();out.close();
+                Toast.makeText(this,"הגיבוי נשמר בהצלחה ✅",Toast.LENGTH_LONG).show();
+            }else if(requestCode==REQ_IMPORT){
+                in=getContentResolver().openInputStream(uri);
+                if(in==null)throw new IllegalStateException();
+                java.io.ByteArrayOutputStream buf=new java.io.ByteArrayOutputStream();
+                byte[] chunk=new byte[8192];int n;
+                while((n=in.read(chunk))!=-1)buf.write(chunk,0,n);
+                in.close();
+                JSONObject wrapper=new JSONObject(new String(buf.toByteArray(),StandardCharsets.UTF_8));
+                JSONObject restored=wrapper.optJSONObject("days");
+                if(restored==null)throw new IllegalArgumentException();
+                new AlertDialog.Builder(this)
+                    .setTitle("שחזור גיבוי")
+                    .setMessage("השחזור יחליף את ימי המעקב הקיימים בגיבוי. להמשיך?")
+                    .setNegativeButton("ביטול",null)
+                    .setPositiveButton("שחזור",(d,w)->{
+                        days=new JSONObject(restored.toString());
+                        persist();
+                        Toast.makeText(this,"הגיבוי שוחזר בהצלחה ✅",Toast.LENGTH_LONG).show();
+                        showHome();
+                    }).show();
+            }
+        }catch(Exception e){
+            Toast.makeText(this,requestCode==REQ_EXPORT?"שמירת הגיבוי נכשלה":"קובץ הגיבוי לא תקין",Toast.LENGTH_LONG).show();
+        }
     }
 
     double averageScore(){
