@@ -23,7 +23,7 @@ public class MainActivity extends Activity {
     static final int BLUE=Color.rgb(54,112,220);
     static final int BG_DARK=Color.rgb(8,12,20), TEXT_DARK=Color.rgb(247,249,255), MUTED_DARK=Color.rgb(159,170,191);
     static final int BG_LIGHT=Color.rgb(240,243,249), TEXT_LIGHT=Color.rgb(21,25,35), MUTED_LIGHT=Color.rgb(101,112,130);
-    static final int accent()=Color.rgb(111,102,244), GREEN=Color.rgb(47,198,141), RED=Color.rgb(239,106,119), GOLD=Color.rgb(246,190,72);
+    static final int ACCENT=Color.rgb(111,102,244), GREEN=Color.rgb(47,198,141), RED=Color.rgb(239,106,119), GOLD=Color.rgb(246,190,72);
 
     JSONObject days=new JSONObject();
     boolean dark=true, reminder=false;
