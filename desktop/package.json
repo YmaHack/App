@@ -1,6 +1,6 @@
 {
   "name": "daily-challenge-desktop",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "אתגר יומי — תוכנת מחשב עם סנכרון לאפליקציית Android",
   "main": "main.cjs",
   "scripts": {
