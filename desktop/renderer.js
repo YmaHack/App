@@ -27,21 +27,51 @@
   function hp(d){const p={};for(const x of hebrewFmt.formatToParts(d))p[x.type]=x.value;return p;}
   const hebrewNumericDayFmt = new Intl.DateTimeFormat("en-US-u-ca-hebrew",{day:"numeric"});
   const hebrewNumericYearFmt = new Intl.DateTimeFormat("en-US-u-ca-hebrew",{year:"numeric"});
-  function hebrewNumber(value){
+
+  const hebrewDayMap=[
+    "","א׳","ב׳","ג׳","ד׳","ה׳","ו׳","ז׳","ח׳","ט׳",
+    "י׳","י״א","י״ב","י״ג","י״ד","ט״ו","ט״ז","י״ז","י״ח","י״ט",
+    "כ׳","כ״א","כ״ב","כ״ג","כ״ד","כ״ה","כ״ו","כ״ז","כ״ח","כ״ט","ל׳"
+  ];
+
+  function hebrewLetters(value){
     let n=Number(String(value).replace(/[^0-9]/g,""));
     if(!Number.isFinite(n)||n<=0)return "";
-    const hundreds=["","ק","ר","ש","ת"],units=["","א","ב","ג","ד","ה","ו","ז","ח","ט"];
+    n=n%1000;
+    if(n===0)return "";
+    if(n<=30)return hebrewDayMap[n];
+
+    const hundreds=["","ק","ר","ש","ת"];
+    const units=["","א","ב","ג","ד","ה","ו","ז","ח","ט"];
     let out="";
     while(n>=400){out+="ת";n-=400;}
-    if(n>=100){out+=hundreds[Math.min(4,Math.floor(n/100))];n%=100;}
-    if(n>=90){out+="צ";n-=90;}else if(n>=80){out+="פ";n-=80;}else if(n>=70){out+="ע";n-=70;}else if(n>=60){out+="ס";n-=60;}else if(n>=50){out+="נ";n-=50;}else if(n>=40){out+="מ";n-=40;}else if(n>=30){out+="ל";n-=30;}else if(n>=20){out+="כ";n-=20;}
-    if(n===16){out+="טז";n=0;}
-    else if(n===15){out+="טו";n=0;}
-    else if(n>0)out+=units[n];
+    if(n>=100){out+=hundreds[Math.floor(n/100)];n%=100;}
+    if(n>=20){
+      const tens=["","", "כ","ל","מ","נ","ס","ע","פ","צ"];
+      out+=tens[Math.floor(n/10)];
+      n%=10;
+    }
+    if(n>=10){
+      if(n===15){out+="טו";n=0;}
+      else if(n===16){out+="טז";n=0;}
+      else {out+="י";n-=10;}
+    }
+    if(n>0)out+=units[n];
     if(out.length===1)return out+"׳";
-    return out.slice(0,-1)+"״"+out.slice(-1);
+    if(out.length>1)return out.slice(0,-1)+"״"+out.slice(-1);
+    return out;
   }
-  const hebrewDay=d=>hebrewNumber(hebrewNumericDayFmt.format(d)),hebrewMonth=d=>hebrewMonthFmt.format(d),hebrewYear=d=>hebrewNumber(Number(hebrewNumericYearFmt.format(d).replace(/[^0-9]/g,""))%5000);
+
+  function hebrewDay(d){
+    const n=Number(hebrewNumericDayFmt.format(d).replace(/[^0-9]/g,""));
+    return hebrewLetters(n);
+  }
+  function hebrewMonth(d){return hebrewMonthFmt.format(d);}
+  function hebrewYear(d){
+    const n=Number(hebrewNumericYearFmt.format(d).replace(/[^0-9]/g,""));
+    return hebrewLetters(n>=5000?n-5000:n);
+  }
+  function hebrewFull(d){return hebrewDay(d)+" "+hebrewMonth(d)+" "+hebrewYear(d);}
   const hebrewTitle=d=>`${hebrewMonth(d)} ${hebrewYear(d)}`;
   const greg=d=>gregFmt.format(d), shortGreg=d=>gregShortFmt.format(d);
   const sameHebrewMonth=(a,b)=>{const pa=hp(a),pb=hp(b);return pa.month===pb.month&&pa.year===pb.year;};
@@ -102,7 +132,7 @@
       <div class="stats-row"><div class="stat"><b>🔥 ${streak}</b><span>רצף</span></div><div class="stat"><b>✅ ${successCount()}</b><span>הצלחות</span></div><div class="stat"><b>🏆 ${bestStreak()}</b><span>שיא</span></div></div>
       <div class="card"><div class="card-label">היום 📅</div>
       <h3>${new Intl.DateTimeFormat("he-IL",{weekday:"long",day:"numeric",month:"long"}).format(today)}</h3>
-      <div class="hebrew-big">${hebrewFmt.format(today)}</div><div class="muted">${greg(today)}</div>
+      <div class="hebrew-big">${hebrewFull(today)}</div><div class="muted">${greg(today)}</div>
       <div class="status ${e?(e.success?"ok":"bad"):""}>${e?(e.success?`הצלחת היום ✅ • ציון ⭐ ${e.score}/10`:`לא הצלחת הפעם 🤍 • ציון ⭐ ${e.score}/10`):"עדיין לא עודכן"}</div>
       <button class="primary" id="updateToday">עדכן היום</button></div>
       <div class="card quote-card"><div class="card-label">✦ משפט מוטיבציה</div><div class="quote-row">
@@ -146,7 +176,7 @@
       <div class="theme-grid">${themes.map((t,i)=>`<button class="theme-option ${themeIndex===i?"selected":""}" data-theme="${i}"><span class="dot" style="background:${t.accent}"></span>${t.name}</button>`).join("")}</div>
       <label class="setting-row"><span><b>מצב כהה 🌙</b><small>מראה נקי ומודרני</small></span><input id="darkToggle" type="checkbox" ${dark?"checked":""}></label><hr>
       <div class="card-label">סנכרון עם הטלפון 📱</div>
-      <p class="muted">התוכנה פותחת שרת מקומי ברשת הביתית. הזן באפליקציית Android כתובת מהשורות הבאות. אין צורך בחשבון ענן.</p>
+      <p class="muted">הטלפון והמחשב צריכים להיות באותה רשת Wi‑Fi. הכתובת שמופיעה כאן היא הכתובת שהטלפון צריך לקבל. אחרי סנכרון יופיע כאן מספר הימים שסונכרנו.</p>
       <div id="addresses" class="addresses">טוען כתובת…</div>
       <button class="secondary" id="copyAddress">העתק כתובת ראשית 📋</button>
       <button class="primary" id="syncNow">רענן וסנכרן עכשיו 🔄</button><hr>
@@ -155,7 +185,14 @@
     `;
     document.querySelectorAll(".theme-option").forEach(b=>b.onclick=()=>{themeIndex=Number(b.dataset.theme);themeApply();renderSettings();saveLocalPrefs();});
     $("darkToggle").onchange=e=>{dark=e.target.checked;themeApply();saveLocalPrefs();};
-    $("syncNow").onclick=async()=>{try{await window.desktopAPI.setState(days);setSyncPill("● מסונכרן ✅","ok");renderAll();}catch{setSyncPill("● הסנכרון נכשל","bad");}};
+    $("syncNow").onclick=async()=>{
+      try{
+        const r=await window.desktopAPI.setState(days);
+        if(r?.days)days=r.days;
+        setSyncPill(syncLabel("● הסנכרון הושלם ✅"),"ok");
+        renderAll();
+      }catch{setSyncPill("● הסנכרון נכשל","bad");}
+    };
     $("copyAddress").onclick=async()=>{try{const inf=await window.desktopAPI.getInfo(),first=inf.addresses?.[0];if(first){await navigator.clipboard.writeText(first);setSyncPill("● הכתובת הועתקה","ok");}}catch{}};
     loadAddresses();$("exportBtn").onclick=exportBackup;$("importFile").onchange=importBackup;
   }
@@ -207,7 +244,21 @@
 
   function renderAll(){const v=document.querySelector(".screen:not(.hidden)")?.id||"home";setScreen(v);}
   document.querySelectorAll(".nav-item").forEach(b=>b.onclick=()=>setScreen(b.dataset.screen));
-  $("settingsBtn").onclick=()=>setScreen("settings");loadLocalPrefs();
-  window.desktopAPI?.onStateChanged(()=>{clearTimeout(timer);timer=setTimeout(async()=>{await loadState();renderAll();},150);});
-  (async()=>{await loadState();renderHome();setInterval(async()=>{await loadState();const a=document.querySelector(".screen:not(.hidden)")?.id;if(a==="home"||a==="calendar"||a==="stats")renderAll();},3000);})();
+  $("settingsBtn").onclick=()=>setScreen("settings");loadLocalPrefs();setScreen("home");
+  window.desktopAPI?.onStateChanged(()=>{
+    clearTimeout(timer);
+    timer=setTimeout(async()=>{
+      try{await loadState("phone");renderAll();}catch{}
+    },100);
+  });
+  (async()=>{
+    renderHome();
+    try{await loadState("local");}catch{}
+    renderAll();
+    setInterval(async()=>{
+      try{await loadState("poll");}catch{}
+      const a=document.querySelector(".screen:not(.hidden)")?.id;
+      if(a==="home"||a==="calendar"||a==="stats")renderAll();
+    },3000);
+  })();
 })();
