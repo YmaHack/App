@@ -136,7 +136,7 @@
       <div class="status ${e?(e.success?"ok":"bad"):""}>${e?(e.success?`הצלחת היום ✅ • ציון ⭐ ${e.score}/10`:`לא הצלחת הפעם 🤍 • ציון ⭐ ${e.score}/10`):"עדיין לא עודכן"}</div>
       <button class="primary" id="updateToday">עדכן היום</button></div>
       <div class="card quote-card"><div class="card-label">✦ משפט מוטיבציה</div><div class="quote-row">
-      <div class="scene"><span>🌄</span><span>🌲</span></div><div class="quote">${quotes[idx]}</div></div><div class="muted">גם מחר מחכה לך יום חדש. 🌿</div></div>
+      ${sceneMarkup(idx)}<div class="quote">${quotes[idx]}</div></div><div class="muted">גם מחר מחכה לך יום חדש. 🌿</div></div>
     `;
     $("updateToday").onclick=()=>openEditor(today);
   }
@@ -194,7 +194,7 @@
       }catch{setSyncPill("● הסנכרון נכשל","bad");}
     };
     $("copyAddress").onclick=async()=>{try{const inf=await window.desktopAPI.getInfo(),first=inf.addresses?.[0];if(first){await navigator.clipboard.writeText(first);setSyncPill("● הכתובת הועתקה","ok");}}catch{}};
-    loadAddresses();$("exportBtn").onclick=exportBackup;$("importFile").onchange=importBackup;
+    loadAddresses();$("exportBtn").onclick=exportBackup;$("importFile").onclick=(e)=>{e.preventDefault();importBackup();};
   }
   async function loadAddresses(){
     try{
@@ -217,6 +217,121 @@
   function loadLocalPrefs(){try{const p=JSON.parse(localStorage.getItem("challenge-desktop-prefs")||"{}");if(Number.isInteger(p.themeIndex))themeIndex=Math.max(0,Math.min(4,p.themeIndex));if(typeof p.dark==="boolean")dark=p.dark;}catch{}themeApply();}
   function closeModal(){$("modal").classList.add("hidden");$("modalCard").innerHTML="";}
   $("modal").addEventListener("click",e=>{if(e.target.dataset.closeModal)closeModal();});
+  function sceneMarkup(index){
+    const files=["scene-mountain.svg","scene-forest.svg","scene-sea.svg"];
+    return '<img class="scene-art" src="'+files[index%files.length]+'" alt="איור מוטיבציה">';
+  }
+
+  function trackedDayCount(){
+    return Object.values(days).filter(e=>e&&!e.deleted).length;
+  }
+  function syncLabel(prefix){
+    return prefix+" • "+trackedDayCount()+" ימים במחשב";
+  }
+
+  function openEditor(date){
+    const k=key(date), e=visibleEntry(date);
+    let success=e?!!e.success:null;
+    let score=e?Number(e.score)||10:10;
+    $("modalCard").innerHTML=`
+      <div class="modal-title">${new Intl.DateTimeFormat("he-IL",{weekday:"long",day:"numeric",month:"long"}).format(date)}</div>
+      <div class="hebrew-big">${hebrewFull(date)}</div>
+      <div class="muted">${greg(date)}</div>
+      <div class="choice-row">
+        <button id="yesBtn" class="choice">הצלחתי ✅</button>
+        <button id="noBtn" class="choice">לא הצלחתי ❌</button>
+      </div>
+      <div class="card-label">איך היה היום? ⭐</div>
+      <div class="score-grid">${Array.from({length:10},(_,i)=>`<button data-score="${i+1}" class="score-btn">${i+1}</button>`).join("")}</div>
+      <textarea id="note" placeholder="הערה לעצמך (לא חובה)"></textarea>
+      <div class="modal-actions">
+        <button id="clearDay" class="danger secondary">ניקוי הסימון</button>
+        <button id="saveDay" class="primary">שמירת היום</button>
+      </div>`;
+    const yes=$("yesBtn"),no=$("noBtn"),note=$("note");
+    function refreshChoices(){
+      yes.classList.toggle("selected-ok",success===true);
+      no.classList.toggle("selected-bad",success===false);
+      document.querySelectorAll(".score-btn").forEach(x=>x.classList.toggle("selected",Number(x.dataset.score)===score));
+    }
+    yes.onclick=()=>{success=true;refreshChoices();};
+    no.onclick=()=>{success=false;refreshChoices();};
+    document.querySelectorAll(".score-btn").forEach(b=>b.onclick=()=>{score=Number(b.dataset.score);refreshChoices();});
+    note.value=e?.note||"";
+    refreshChoices();
+
+    $("saveDay").onclick=async()=>{
+      if(success===null){alert("בחר קודם אם הצלחת או לא");return;}
+      days[k]={success,score,note:note.value,deleted:false,updatedAt:Date.now()};
+      if(await pushState()){closeModal();renderAll();}
+    };
+    $("clearDay").onclick=async()=>{
+      days[k]={deleted:true,updatedAt:Date.now()};
+      if(await pushState()){closeModal();renderAll();}
+    };
+    $("modal").classList.remove("hidden");
+  }
+
+  async function pushState(){
+    try{
+      const r=await window.desktopAPI.setState(days);
+      if(!r||!r.days)throw new Error("empty-response");
+      days=r.days;
+      setSyncPill(syncLabel("● הסנכרון הושלם ✅"),"ok");
+      return true;
+    }catch(e){
+      setSyncPill("● הסנכרון נכשל — בדוק רשת וחומת אש","bad");
+      return false;
+    }
+  }
+
+  async function loadState(source="local"){
+    try{
+      const s=await window.desktopAPI.getState();
+      if(s&&s.days)days=s.days;
+      setSyncPill(syncLabel(source==="phone"?"● התקבל עדכון מהטלפון ✅":"● הנתונים זמינים"),"ok");
+    }catch(e){
+      setSyncPill("● לא ניתן לטעון נתונים","bad");
+      throw e;
+    }
+  }
+
+  async function loadAddresses(){
+    try{
+      const info=await window.desktopAPI.getInfo();
+      const addresses=info.addresses||[];
+      if(addresses.length===0){
+        $("addresses").innerHTML="<code>אין כתובת רשת זמינה. בדוק Wi‑Fi / כבל רשת.</code><code>מחשב מקומי: "+info.localhost+"</code>";
+        setSyncPill("● אין כתובת LAN","bad");
+      }else{
+        $("addresses").innerHTML=addresses.map(a=>"<code>"+a+"</code>").join("");
+        setSyncPill(syncLabel("● מוכן לסנכרון ✅"),"ok");
+      }
+    }catch(e){
+      $("addresses").innerHTML="<code>לא ניתן לקרוא את כתובת הסנכרון.</code>";
+      setSyncPill("● תקלה בשרת המקומי","bad");
+    }
+  }
+
+  async function exportBackup(){
+    try{
+      const r=await window.desktopAPI.exportBackup();
+      if(r?.ok)setSyncPill("● הגיבוי נשמר ✅","ok");
+    }catch(e){alert("שמירת הגיבוי נכשלה.");}
+  }
+
+  async function importBackup(){
+    try{
+      const r=await window.desktopAPI.importBackup();
+      if(r?.ok){
+        days=r.days||{};
+        setSyncPill("● הגיבוי שוחזר ✅","ok");
+        renderAll();
+      }
+    }catch(e){alert("קובץ הגיבוי לא תקין או שאין בו ימי מעקב.");}
+  }
+
+
   function importBackup(e){
     const file=e.target.files?.[0];if(!file)return;
     const reader=new FileReader();
