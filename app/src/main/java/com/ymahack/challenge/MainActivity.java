@@ -279,10 +279,14 @@ public class MainActivity extends Activity {
                     .setMessage("השחזור יחליף את ימי המעקב הקיימים בגיבוי. להמשיך?")
                     .setNegativeButton("ביטול",null)
                     .setPositiveButton("שחזור",(d,w)->{
-                        days=new JSONObject(restored.toString());
-                        persist();
-                        Toast.makeText(this,"הגיבוי שוחזר בהצלחה ✅",Toast.LENGTH_LONG).show();
-                        showHome();
+                        try{
+                            days=new JSONObject(restored.toString());
+                            persist();
+                            Toast.makeText(this,"הגיבוי שוחזר בהצלחה ✅",Toast.LENGTH_LONG).show();
+                            showHome();
+                        }catch(Exception ex){
+                            Toast.makeText(this,"השחזור נכשל",Toast.LENGTH_LONG).show();
+                        }
                     }).show();
             }
         }catch(Exception e){
