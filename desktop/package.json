@@ -1,0 +1,29 @@
+{
+  "name": "daily-challenge-desktop",
+  "version": "1.0.0",
+  "description": "אתגר יומי — תוכנת מחשב עם סנכרון לאפליקציית Android",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.ymahack.dailychallenge.desktop",
+    "productName": "אתגר יומי",
+    "directories": {
+      "output": "dist"
+    },
+    "files": ["main.cjs","preload.cjs","index.html","renderer.js","styles.css"],
+    "win": {"target": ["nsis","portable"]},
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
