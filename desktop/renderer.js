@@ -35,9 +35,9 @@
     while(n>=400){out+="ת";n-=400;}
     if(n>=100){out+=hundreds[Math.min(4,Math.floor(n/100))];n%=100;}
     if(n>=90){out+="צ";n-=90;}else if(n>=80){out+="פ";n-=80;}else if(n>=70){out+="ע";n-=70;}else if(n>=60){out+="ס";n-=60;}else if(n>=50){out+="נ";n-=50;}else if(n>=40){out+="מ";n-=40;}else if(n>=30){out+="ל";n-=30;}else if(n>=20){out+="כ";n-=20;}
-    if(n===16)return out+"טז";
-    if(n===15)return out+"טו";
-    if(n>0)out+=units[n];
+    if(n===16){out+="טז";n=0;}
+    else if(n===15){out+="טו";n=0;}
+    else if(n>0)out+=units[n];
     if(out.length===1)return out+"׳";
     return out.slice(0,-1)+"״"+out.slice(-1);
   }
@@ -190,7 +190,7 @@
         if(!imported||typeof imported!=="object"||Array.isArray(imported))throw new Error("bad");
         const normalized={};let offset=0;
         for(const [k,v] of Object.entries(imported)){
-          if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(k)||!v||typeof v!=="object")continue;
+          if(!/^\d{4}-\d{2}-\d{2}$/.test(k)||!v||typeof v!=="object")continue;
           normalized[k]={...v,updatedAt:Number(v.updatedAt)||Date.now()+offset++,deleted:v.deleted===true};
         }
         if(Object.keys(normalized).length===0)throw new Error("empty");
