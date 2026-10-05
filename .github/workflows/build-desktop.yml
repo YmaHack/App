@@ -1,0 +1,35 @@
+name: Build Desktop
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "desktop/**"
+      - ".github/workflows/build-desktop.yml"
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install dependencies
+        working-directory: desktop
+        run: npm install
+      - name: Build Windows app
+        working-directory: desktop
+        run: npm run dist
+      - name: Upload Windows packages
+        uses: actions/upload-artifact@v6
+        with:
+          name: daily-challenge-windows
+          path: desktop/dist/*.exe
+          if-no-files-found: error
+          retention-days: 30
