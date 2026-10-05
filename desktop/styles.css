@@ -1,6 +1,6 @@
 :root{--accent:#3670dc;--dark-bg:#0b1220;--dark-card:#182334;--accent-soft:#3670dc22;--bg:#0b1220;--card:#182334;--text:#f7f9ff;--muted:#9eafc6;--border:#ffffff12}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text)}
-body.light{--bg:#f2f7fc;--card:#fff;--text:#191e28;--muted:#5d6c7e;--border:#1a24300f}body{direction:rtl}
+body.light{--bg:var(--light-bg,#f2f7fc);--card:var(--light-card,#fff);--text:#191e28;--muted:#5d6c7e;--border:#1a24300f}body{direction:rtl}
 button,input,textarea{font:inherit}button{cursor:pointer}.app{min-height:100vh;display:flex;flex-direction:column}
 .topbar{height:82px;padding:14px 22px;display:flex;align-items:center;gap:18px;border-bottom:1px solid var(--border);background:var(--bg)}
 .title-wrap{text-align:right;flex:1}.topbar h1{margin:0;font-size:28px}.eyebrow,.card-label{color:var(--muted);font-size:12px;font-weight:700}
