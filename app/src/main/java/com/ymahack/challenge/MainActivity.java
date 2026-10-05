@@ -23,11 +23,80 @@ public class MainActivity extends Activity {
     static final int BLUE=Color.rgb(54,112,220);
     static final int BG_DARK=Color.rgb(8,12,20), TEXT_DARK=Color.rgb(247,249,255), MUTED_DARK=Color.rgb(159,170,191);
     static final int BG_LIGHT=Color.rgb(240,243,249), TEXT_LIGHT=Color.rgb(21,25,35), MUTED_LIGHT=Color.rgb(101,112,130);
-    static final int ACCENT=Color.rgb(111,102,244), GREEN=Color.rgb(47,198,141), RED=Color.rgb(239,106,119), GOLD=Color.rgb(246,190,72);
+    static final int accent()=Color.rgb(111,102,244), GREEN=Color.rgb(47,198,141), RED=Color.rgb(239,106,119), GOLD=Color.rgb(246,190,72);
 
     JSONObject days=new JSONObject();
     boolean dark=true, reminder=false;
+    int themeIndex=0;
     int reminderHour=20, reminderMinute=30;
+
+    final String[] themeNames={"אוקיינוס 🌊","יער 🌿","לבנדר 💜","שקיעה 🌅","ענבר ✨"};
+
+    int accent(){
+        switch(themeIndex){
+            case 1:return Color.rgb(46,143,99);
+            case 2:return Color.rgb(126,92,214);
+            case 3:return Color.rgb(212,91,101);
+            case 4:return Color.rgb(209,142,42);
+            default:return Color.rgb(54,112,220);
+        }
+    }
+
+    int themeDarkBg(){
+        switch(themeIndex){
+            case 1:return Color.rgb(8,20,15);
+            case 2:return Color.rgb(18,13,30);
+            case 3:return Color.rgb(28,12,17);
+            case 4:return Color.rgb(25,18,8);
+            default:return Color.rgb(8,16,28);
+        }
+    }
+
+    int themeDarkCard(){
+        switch(themeIndex){
+            case 1:return Color.rgb(22,39,31);
+            case 2:return Color.rgb(35,28,49);
+            case 3:return Color.rgb(47,28,34);
+            case 4:return Color.rgb(46,36,20);
+            default:return Color.rgb(24,35,52);
+        }
+    }
+
+    int themeDarkText(){return Color.rgb(247,249,255);}
+    int themeDarkMuted(){
+        switch(themeIndex){
+            case 1:return Color.rgb(151,181,166);
+            case 2:return Color.rgb(177,164,198);
+            case 3:return Color.rgb(194,165,171);
+            case 4:return Color.rgb(193,176,139);
+            default:return Color.rgb(158,175,198);
+        }
+    }
+
+    int themeLightBg(){
+        switch(themeIndex){
+            case 1:return Color.rgb(241,248,244);
+            case 2:return Color.rgb(247,244,252);
+            case 3:return Color.rgb(252,245,246);
+            case 4:return Color.rgb(252,248,239);
+            default:return Color.rgb(242,247,252);
+        }
+    }
+
+    int themeLightCard(){
+        return Color.WHITE;
+    }
+
+    int themeLightText(){return Color.rgb(25,30,40);}
+    int themeLightMuted(){
+        switch(themeIndex){
+            case 1:return Color.rgb(91,113,101);
+            case 2:return Color.rgb(103,94,119);
+            case 3:return Color.rgb(118,92,99);
+            case 4:return Color.rgb(121,103,75);
+            default:return Color.rgb(93,108,126);
+        }
+    }
     final java.util.Calendar cursor=java.util.Calendar.getInstance();
     java.util.Calendar selected=java.util.Calendar.getInstance();
 
@@ -57,10 +126,10 @@ public class MainActivity extends Activity {
     };
 
     int dp(float v){ return (int)(v*getResources().getDisplayMetrics().density+.5f); }
-    int bg(){return dark?BG_DARK:BG_LIGHT;}
-    int text(){return dark?TEXT_DARK:TEXT_LIGHT;}
-    int muted(){return dark?MUTED_DARK:MUTED_LIGHT;}
-    int panelColor(){return dark?Color.rgb(25,31,43):Color.WHITE;}
+    int bg(){return dark?themeDarkBg():themeLightBg();}
+    int text(){return dark?themeDarkText():themeLightText();}
+    int muted(){return dark?themeDarkMuted():themeLightMuted();}
+    int panelColor(){return dark?themeDarkCard():themeLightCard();}
     int panelStrong(){return dark?Color.rgb(31,38,52):Color.WHITE;}
 
     @Override public void onCreate(Bundle b){
@@ -79,6 +148,7 @@ public class MainActivity extends Activity {
         try{
             JSONObject s=new JSONObject(getSharedPreferences(PREFS,MODE_PRIVATE).getString(SETTINGS,"{}"));
             dark=s.optBoolean("dark",true); reminder=s.optBoolean("reminder",false);
+            themeIndex=Math.max(0,Math.min(4,s.optInt("theme",0)));
             reminderHour=s.optInt("hour",20); reminderMinute=s.optInt("minute",30);
         }catch(Exception ignored){}
     }
@@ -86,7 +156,7 @@ public class MainActivity extends Activity {
     void persist(){
         try{
             JSONObject s=new JSONObject();
-            s.put("dark",dark).put("reminder",reminder).put("hour",reminderHour).put("minute",reminderMinute);
+            s.put("dark",dark).put("reminder",reminder).put("theme",themeIndex).put("hour",reminderHour).put("minute",reminderMinute);
             getSharedPreferences(PREFS,MODE_PRIVATE).edit().putString(DATA,days.toString()).putString(SETTINGS,s.toString()).apply();
         }catch(Exception ignored){}
     }
@@ -318,16 +388,16 @@ public class MainActivity extends Activity {
         LinearLayout stats=card();LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER);addStatChip(row,"🔥",String.valueOf(currentStreak()),"רצף");addStatChip(row,"✅",String.valueOf(successCount()),"הצלחות");addStatChip(row,"🏆",String.valueOf(bestStreak()),"שיא");stats.addView(row);content.addView(stats);content.addView(space(12));
 
         java.util.Calendar today=day(java.util.Calendar.getInstance());
-        LinearLayout t=card();t.addView(tv("היום 📅",11,ACCENT));
+        LinearLayout t=card();t.addView(tv("היום 📅",11,accent()));
         TextView tg=tv(new SimpleDateFormat("EEEE, d בMMMM",new Locale("he","IL")).format(today.getTime()),19,text());tg.setTypeface(null,1);t.addView(tg);
         TextView th=tv(hebrewFull(today),22,text());th.setTypeface(null,1);t.addView(th);
         TextView small=tv(gregNumeric(today),10,muted());t.addView(small);
         String status=e==null?"עדיין לא עודכן  •  לחץ לעדכון":e.optBoolean("success")?"הצלחת היום ✅  •  ציון ⭐ "+e.optInt("score")+"/10":"לא הצלחת הפעם 🤍  •  ציון ⭐ "+e.optInt("score")+"/10";
-        TextView st=tv(status,14,e==null?ACCENT:(e.optBoolean("success")?GREEN:RED));st.setPadding(0,dp(9),0,dp(9));t.addView(st);
-        Button edit=button("עדכן היום");edit.setBackground(glass(ACCENT,16));edit.setTextColor(Color.WHITE);edit.setOnClickListener(v->openEditor(today));t.addView(edit,new LinearLayout.LayoutParams(-1,dp(50)));content.addView(t);content.addView(space(12));
+        TextView st=tv(status,14,e==null?accent():(e.optBoolean("success")?GREEN:RED));st.setPadding(0,dp(9),0,dp(9));t.addView(st);
+        Button edit=button("עדכן היום");edit.setBackground(glass(accent(),16));edit.setTextColor(Color.WHITE);edit.setOnClickListener(v->openEditor(today));t.addView(edit,new LinearLayout.LayoutParams(-1,dp(50)));content.addView(t);content.addView(space(12));
 
         LinearLayout quote=card();
-        quote.addView(tv("✦ משפט מוטיבציה",11,ACCENT));
+        quote.addView(tv("✦ משפט מוטיבציה",11,accent()));
         LinearLayout quoteRow=new LinearLayout(this);
         quoteRow.setGravity(Gravity.CENTER_VERTICAL);
         quoteRow.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
@@ -506,7 +576,7 @@ public class MainActivity extends Activity {
         content.addView(space(10));
 
         LinearLayout tip=card();
-        tip.addView(tv("עידוד",11,ACCENT));
+        tip.addView(tv("עידוד",11,accent()));
         tip.addView(tv(currentStreak()>0?"אתה כבר בתוך רצף. עוד יום אחד יכול לחזק את ההרגל. 🔥":"גם התחלה מחדש היא הצלחה. היום אפשר להתחיל. 🌱",18,text()));
         content.addView(tip);
     }
@@ -519,8 +589,32 @@ public class MainActivity extends Activity {
 
         LinearLayout c=card();
 
+        c.addView(tv("ערכת נושא 🎨",13,accent()));
+        LinearLayout themeGrid=new LinearLayout(this);
+        themeGrid.setOrientation(LinearLayout.VERTICAL);
+
+        final RadioButton[] themeButtons=new RadioButton[themeNames.length];
+        for(int i=0;i<themeNames.length;i++){
+            final int index=i;
+            RadioButton rb=new RadioButton(this);
+            rb.setText(themeNames[i]);
+            rb.setTextSize(14);
+            rb.setTextColor(text());
+            rb.setChecked(themeIndex==i);
+            rb.setButtonTintList(new android.content.res.ColorStateList(
+                    new int[][]{new int[]{android.R.attr.state_checked},new int[]{}},
+                    new int[]{accent(),muted()}
+            ));
+            rb.setOnClickListener(v->{themeIndex=index;persist();showSettings();});
+            themeButtons[i]=rb;
+            themeGrid.addView(rb,new LinearLayout.LayoutParams(-1,dp(46)));
+        }
+        c.addView(themeGrid);
+
+        c.addView(space(8));
+
         LinearLayout appearance=new LinearLayout(this);appearance.setGravity(Gravity.CENTER_VERTICAL);
-        TextView a=tv("מצב כהה 🌙\nמראה פשוט, ברור ומודרני",14,text());
+        TextView a=tv("מצב כהה 🌙\nמראה נקי ומודרני",14,text());
         appearance.addView(a,new LinearLayout.LayoutParams(0,dp(64),1));
         Switch sw=new Switch(this);sw.setChecked(dark);
         sw.setOnCheckedChangeListener((b,checked)->{dark=checked;persist();showSettings();});
