@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>אתגר יומי</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <button id="settingsBtn" class="icon-btn" title="הגדרות">⚙️</button>
+      <div class="title-wrap">
+        <div class="eyebrow">מעקב אישי</div><h1>אתגר יומי</h1>
+      </div>
+      <div class="sync-pill" id="syncPill">● ממתין לסנכרון</div>
+    </header>
+    <main class="main">
+      <section id="home" class="screen"></section>
+      <section id="calendar" class="screen hidden"></section>
+      <section id="stats" class="screen hidden"></section>
+      <section id="settings" class="screen hidden"></section>
+    </main>
+    <nav class="bottom-nav">
+      <button data-screen="home" class="nav-item active"><span>🏠</span><strong>בית</strong></button>
+      <button data-screen="calendar" class="nav-item"><span>📅</span><strong>לוח שנה</strong></button>
+      <button data-screen="stats" class="nav-item"><span>💪</span><strong>התקדמות</strong></button>
+    </nav>
+  </div>
+  <div id="modal" class="modal hidden">
+    <div class="modal-backdrop" data-close-modal="1"></div><div class="modal-card" id="modalCard"></div>
+  </div>
+  <script src="renderer.js"></script>
+</body>
+</html>
