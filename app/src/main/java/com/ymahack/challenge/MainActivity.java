@@ -21,6 +21,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -37,6 +39,9 @@ public class MainActivity extends Activity {
     int themeIndex=0;
     int reminderHour=20, reminderMinute=30;
     int reminderDaysMask=127;
+    String syncUrl="";
+    boolean autoSync=false;
+    boolean syncing=false;
 
     final String[] themeNames={"אוקיינוס 🌊","יער 🌿","לבנדר 💜","שקיעה 🌅","ענבר ✨"};
 
@@ -149,6 +154,7 @@ public class MainActivity extends Activity {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},30);
         scheduleReminder();
         showHome();
+        if(!syncUrl.trim().isEmpty()) syncAsync(false);
     }
 
     void load(){
@@ -181,6 +187,8 @@ public class MainActivity extends Activity {
             reminderMinute=s.optInt("minute",30);
             reminderDaysMask=s.optInt("daysMask",127);
             if(reminderDaysMask<1 || reminderDaysMask>127) reminderDaysMask=127;
+            syncUrl=s.optString("syncUrl","");
+            autoSync=s.optBoolean("autoSync",false);
         }catch(Exception ignored){}
     }
 
@@ -188,7 +196,8 @@ public class MainActivity extends Activity {
         try{
             JSONObject s=new JSONObject();
             s.put("dark",dark).put("reminder",reminder).put("theme",themeIndex)
-             .put("hour",reminderHour).put("minute",reminderMinute).put("daysMask",reminderDaysMask);
+             .put("hour",reminderHour).put("minute",reminderMinute).put("daysMask",reminderDaysMask)
+ .put("syncUrl",syncUrl).put("autoSync",autoSync);
             getSharedPreferences(PREFS,MODE_PRIVATE).edit()
                 .putString(DATA,days.toString()).putString(SETTINGS,s.toString()).apply();
 
@@ -386,13 +395,89 @@ public class MainActivity extends Activity {
     String key(java.util.Calendar d){return String.format(Locale.US,"%04d-%02d-%02d",d.get(Calendar.YEAR),d.get(Calendar.MONTH)+1,d.get(Calendar.DAY_OF_MONTH));}
     java.util.Calendar day(java.util.Calendar d){java.util.Calendar x=(java.util.Calendar)d.clone();x.set(Calendar.HOUR_OF_DAY,12);x.set(Calendar.MINUTE,0);x.set(Calendar.SECOND,0);x.set(Calendar.MILLISECOND,0);return x;}
     java.util.Calendar parse(String k){String[] a=k.split("-");java.util.Calendar d=java.util.Calendar.getInstance();d.set(Integer.parseInt(a[0]),Integer.parseInt(a[1])-1,Integer.parseInt(a[2]),12,0,0);return d;}
-    JSONObject entry(String k){return days.optJSONObject(k);}
+    JSONObject entry(String k){
+        JSONObject e=days.optJSONObject(k);
+        if(e==null || e.optBoolean("deleted",false)) return null;
+        return e;
+    }
     JSONObject entry(java.util.Calendar d){return entry(key(d));}
 
     void saveDay(String k,boolean success,int score,String note){
-        JSONObject o=new JSONObject();try{o.put("success",success).put("score",score).put("note",note==null?"":note);days.put(k,o);}catch(Exception ignored){}persist();
+        JSONObject o=new JSONObject();
+        try{
+            o.put("success",success).put("score",score).put("note",note==null?"":note)
+             .put("deleted",false).put("updatedAt",System.currentTimeMillis());
+            days.put(k,o);
+        }catch(Exception ignored){}
+        persist();
+        if(autoSync && !syncUrl.trim().isEmpty()) syncAsync(false);
     }
-    void removeDay(String k){days.remove(k);persist();}
+
+    void removeDay(String k){
+        JSONObject tombstone=new JSONObject();
+        try{tombstone.put("deleted",true).put("updatedAt",System.currentTimeMillis());days.put(k,tombstone);}
+        catch(Exception ignored){}
+        persist();
+        if(autoSync && !syncUrl.trim().isEmpty()) syncAsync(false);
+    }
+
+    String readStream(InputStream in) throws Exception{
+        java.io.ByteArrayOutputStream buf=new java.io.ByteArrayOutputStream();
+        byte[] chunk=new byte[8192];
+        int n;
+        while((n=in.read(chunk))!=-1)buf.write(chunk,0,n);
+        return new String(buf.toByteArray(),StandardCharsets.UTF_8);
+    }
+
+    void syncAsync(final boolean showMessage){
+        final String target=syncUrl==null?"":syncUrl.trim().replaceAll("/+$","");
+        if(target.isEmpty() || syncing)return;
+        syncing=true;
+        new Thread(()->{
+            String error=null;
+            try{
+                URL url=new URL(target+"/api/state");
+                HttpURLConnection conn=(HttpURLConnection)url.openConnection();
+                conn.setConnectTimeout(4500);
+                conn.setReadTimeout(7000);
+                conn.setRequestMethod("POST");
+                conn.setDoInput(true);
+                conn.setDoOutput(true);
+                conn.setRequestProperty("Content-Type","application/json; charset=UTF-8");
+                conn.setRequestProperty("Accept","application/json");
+
+                JSONObject body=new JSONObject();
+                body.put("version",1);
+                body.put("days",days);
+                OutputStream out=conn.getOutputStream();
+                out.write(body.toString().getBytes(StandardCharsets.UTF_8));
+                out.flush();out.close();
+
+                int code=conn.getResponseCode();
+                InputStream in=code>=200 && code<300?conn.getInputStream():conn.getErrorStream();
+                String response=in==null?"":readStream(in);
+                conn.disconnect();
+                if(code<200 || code>=300) throw new IllegalStateException("HTTP "+code);
+
+                JSONObject remote=new JSONObject(response);
+                JSONObject merged=remote.optJSONObject("days");
+                if(merged==null) throw new IllegalArgumentException("missing days");
+                days=new JSONObject(merged.toString());
+                persist();
+            }catch(Exception e){
+                error=e.getMessage()==null?"שגיאת חיבור":e.getMessage();
+            }
+            final String finalError=error;
+            runOnUiThread(()->{
+                syncing=false;
+                if(showMessage){
+                    Toast.makeText(MainActivity.this,
+                        finalError==null?"הסנכרון הושלם בהצלחה ✅":"הסנכרון נכשל: "+finalError,
+                        Toast.LENGTH_LONG).show();
+                }
+            });
+        },"challenge-sync").start();
+    }
 
     int successCount(){int n=0;Iterator<String>it=days.keys();while(it.hasNext()){JSONObject o=days.optJSONObject(it.next());if(o!=null&&o.optBoolean("success"))n++;}return n;}
     boolean same(java.util.Calendar a,java.util.Calendar b){return a.get(Calendar.YEAR)==b.get(Calendar.YEAR)&&a.get(Calendar.DAY_OF_YEAR)==b.get(Calendar.DAY_OF_YEAR);}
@@ -799,6 +884,63 @@ public class MainActivity extends Activity {
         Button importButton=button("שחזר גיבוי לימים 📥");
         importButton.setOnClickListener(v->importBackup());
         c.addView(importButton,new LinearLayout.LayoutParams(-1,dp(48)));
+
+        c.addView(space(8));
+        c.addView(tv("סנכרון עם המחשב 💻",13,accent()));
+        c.addView(tv("פתח את תוכנת ״אתגר יומי״ במחשב. היא תציג כתובת כמו http://192.168.1.25:39225. הטלפון והמחשב צריכים להיות באותה רשת Wi‑Fi.",11,muted()));
+
+        EditText syncField=new EditText(this);
+        syncField.setSingleLine(true);
+        syncField.setText(syncUrl);
+        syncField.setHint("כתובת הסנכרון מהמחשב");
+        syncField.setTextColor(text());
+        syncField.setHintTextColor(muted());
+        syncField.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        c.addView(syncField,new LinearLayout.LayoutParams(-1,dp(54)));
+
+        Button syncSave=button("שמור כתובת וסנכרן עכשיו 🔄");
+        syncSave.setBackgroundColor(accent());
+        syncSave.setTextColor(Color.WHITE);
+        syncSave.setOnClickListener(v->{
+            syncUrl=syncField.getText().toString().trim();
+            persist();
+            if(syncUrl.isEmpty()){
+                Toast.makeText(this,"הכנס קודם את כתובת המחשב",Toast.LENGTH_SHORT).show();
+                return;
+            }
+            syncAsync(true);
+        });
+        c.addView(syncSave,new LinearLayout.LayoutParams(-1,dp(48)));
+
+        LinearLayout syncRow=new LinearLayout(this);
+        syncRow.setGravity(Gravity.CENTER_VERTICAL);
+        syncRow.addView(tv("סנכרון אוטומטי בעת שינוי נתונים",13,text()),new LinearLayout.LayoutParams(0,dp(52),1));
+        Switch syncSwitch=new Switch(this);
+        syncSwitch.setChecked(autoSync);
+        syncSwitch.setOnCheckedChangeListener((b,checked)->{
+            if(checked && syncUrl.trim().isEmpty()){
+                b.setChecked(false);
+                Toast.makeText(this,"שמור קודם את כתובת המחשב",Toast.LENGTH_SHORT).show();
+                return;
+            }
+            autoSync=checked;
+            persist();
+            if(checked) syncAsync(false);
+        });
+        syncRow.addView(syncSwitch,new LinearLayout.LayoutParams(dp(60),dp(52)));
+        c.addView(syncRow);
+
+        Button syncNow=button("סנכרן עכשיו בלבד 🔄");
+        syncNow.setOnClickListener(v->{
+            if(syncField.getText().toString().trim().isEmpty()){
+                Toast.makeText(this,"הכנס כתובת מחשב",Toast.LENGTH_SHORT).show();
+                return;
+            }
+            syncUrl=syncField.getText().toString().trim();
+            persist();
+            syncAsync(true);
+        });
+        c.addView(syncNow,new LinearLayout.LayoutParams(-1,dp(48)));
 
         Button test=button("בדוק תזכורת עכשיו 🔔");
         test.setOnClickListener(v->{requestNotificationPermissionIfNeeded();sendTestNotification();});
