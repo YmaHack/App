@@ -481,7 +481,7 @@ public class MainActivity extends Activity {
                 error=ex.getMessage();
                 if(error==null||error.trim().isEmpty())error="לא ניתן להתחבר למחשב";
                 if(error.contains("Failed to connect")||error.contains("Connection refused")||error.contains("timeout")){
-                    error="לא ניתן להגיע למחשב. בדוק שהמחשב והת手机 באותה רשת ושחומת האש מאפשרת את התוכנה";
+                    error="לא ניתן להגיע למחשב. בדוק שהמחשב והטלפון באותה רשת ושחומת האש מאפשרת את התוכנה";
                 }
             }
             final String finalError=error;
