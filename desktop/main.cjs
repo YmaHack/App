@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
@@ -119,6 +119,32 @@ ipcMain.handle("replace-state",(_,days)=>{
   state.days=(days && typeof days==="object")?days:{};
   persist();
   return state;
+});
+
+ipcMain.handle("export-backup",async()=>{
+  const result=await dialog.showSaveDialog(mainWindow,{
+    title:"ייצוא גיבוי לימים",
+    defaultPath:"אתגר-יומי-גיבוי-"+new Date().toISOString().slice(0,10)+".json",
+    filters:[{name:"JSON",extensions:["json"]}]
+  });
+  if(result.canceled||!result.filePath)return {canceled:true};
+  fs.writeFileSync(result.filePath,JSON.stringify({format:"daily-challenge-backup",version:1,createdAt:Date.now(),days:state.days},null,2),"utf8");
+  return {ok:true,path:result.filePath};
+});
+ipcMain.handle("import-backup",async()=>{
+  const result=await dialog.showOpenDialog(mainWindow,{title:"שחזור גיבוי לימים",properties:["openFile"],filters:[{name:"JSON",extensions:["json"]}]});
+  if(result.canceled||!result.filePaths.length)return {canceled:true};
+  const parsed=JSON.parse(fs.readFileSync(result.filePaths[0],"utf8"));
+  const imported=parsed&&parsed.days&&typeof parsed.days==="object"?parsed.days:parsed;
+  if(!imported||typeof imported!=="object"||Array.isArray(imported))throw new Error("invalid-backup");
+  const cleaned={};
+  for(const [k,v] of Object.entries(imported)){
+    if(/^\\d{4}-\\d{2}-\\d{2}$/.test(k)&&v&&typeof v==="object")cleaned[k]={...v,deleted:v.deleted===true,updatedAt:Number(v.updatedAt)||Date.now()};
+  }
+  if(!Object.keys(cleaned).length)throw new Error("empty-backup");
+  state.days=cleaned;
+  persist();
+  return {ok:true,days:state.days};
 });
 
 function createWindow(){
