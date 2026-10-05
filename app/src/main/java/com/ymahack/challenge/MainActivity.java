@@ -758,6 +758,44 @@ public class MainActivity extends Activity {
         });
         c.addView(timeButton,new LinearLayout.LayoutParams(-1,dp(52)));
 
+        c.addView(tv("ימים לתזכורת 📆",13,accent()));
+        final String[] dayLabels={"א׳","ב׳","ג׳","ד׳","ה׳","ו׳","ש׳"};
+        LinearLayout daysRow1=new LinearLayout(this);
+        LinearLayout daysRow2=new LinearLayout(this);
+        daysRow1.setOrientation(LinearLayout.HORIZONTAL);
+        daysRow2.setOrientation(LinearLayout.HORIZONTAL);
+        daysRow1.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+        daysRow2.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+        for(int i=0;i<7;i++){
+            final int bit=i;
+            Button db=button(dayLabels[i]);
+            db.setTextSize(13);
+            boolean selectedDay=(reminderDaysMask & (1<<bit))!=0;
+            db.setBackgroundColor(selectedDay?accent():(dark?Color.rgb(36,43,57):Color.rgb(232,235,241)));
+            db.setTextColor(selectedDay?Color.WHITE:text());
+            db.setOnClickListener(v->{
+                reminderDaysMask ^= (1<<bit);
+                if(reminderDaysMask==0)reminderDaysMask=1<<bit;
+                persist();
+                if(reminder)scheduleReminder();
+                showSettings();
+            });
+            LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(0,dp(44),1);
+            bp.setMargins(dp(2),dp(2),dp(2),dp(2));
+            if(i<4)daysRow1.addView(db,bp);else daysRow2.addView(db,bp);
+        }
+        c.addView(daysRow1,new LinearLayout.LayoutParams(-1,dp(50)));
+        c.addView(daysRow2,new LinearLayout.LayoutParams(-1,dp(50)));
+        c.addView(tv("כחול = התזכורת תישלח ביום הזה",10,muted()));
+        c.addView(space(8));
+        c.addView(tv("גיבוי הנתונים 💾",13,accent()));
+        Button exportButton=button("הוצא גיבוי לימים 📤");
+        exportButton.setOnClickListener(v->exportBackup());
+        c.addView(exportButton,new LinearLayout.LayoutParams(-1,dp(48)));
+        Button importButton=button("שחזר גיבוי לימים 📥");
+        importButton.setOnClickListener(v->importBackup());
+        c.addView(importButton,new LinearLayout.LayoutParams(-1,dp(48)));
+
         Button test=button("בדוק תזכורת עכשיו 🔔");
         test.setOnClickListener(v->{requestNotificationPermissionIfNeeded();sendTestNotification();});
         c.addView(test,new LinearLayout.LayoutParams(-1,dp(48)));
